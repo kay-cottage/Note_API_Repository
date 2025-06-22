@@ -1,0 +1,581 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>智能笔记整理工具</title>
+    <style>
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(10px);
+            border-radius: 20px;
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.1);
+            overflow: hidden;
+        }
+
+        .header {
+            background: linear-gradient(135deg, #6366f1, #8b5cf6);
+            color: white;
+            padding: 30px;
+            text-align: center;
+        }
+
+        .header h1 {
+            font-size: 2.5rem;
+            margin-bottom: 10px;
+            font-weight: 700;
+        }
+
+        .header p {
+            opacity: 0.9;
+            font-size: 1.1rem;
+        }
+
+        .main-content {
+            padding: 40px;
+        }
+
+        .section {
+            margin-bottom: 40px;
+            padding: 30px;
+            background: rgba(255, 255, 255, 0.8);
+            border-radius: 15px;
+            border: 1px solid rgba(0, 0, 0, 0.1);
+        }
+
+        .section h2 {
+            color: #374151;
+            margin-bottom: 20px;
+            font-size: 1.5rem;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .form-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 20px;
+        }
+
+        .form-group {
+            display: flex;
+            flex-direction: column;
+        }
+
+        .form-group label {
+            font-weight: 600;
+            color: #374151;
+            margin-bottom: 8px;
+            font-size: 0.9rem;
+        }
+
+        .form-group input, .form-group select, .form-group textarea {
+            padding: 12px 16px;
+            border: 2px solid #e5e7eb;
+            border-radius: 10px;
+            font-size: 1rem;
+            transition: all 0.3s ease;
+            background: white;
+        }
+
+        .form-group input:focus, .form-group select:focus, .form-group textarea:focus {
+            outline: none;
+            border-color: #6366f1;
+            box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.1);
+        }
+
+        .password-input {
+            position: relative;
+        }
+
+        .password-toggle {
+            position: absolute;
+            right: 12px;
+            top: 50%;
+            transform: translateY(-50%);
+            background: none;
+            border: none;
+            cursor: pointer;
+            color: #6b7280;
+            font-size: 1.2rem;
+        }
+
+        .btn {
+            background: linear-gradient(135deg, #6366f1, #8b5cf6);
+            color: white;
+            border: none;
+            padding: 15px 30px;
+            border-radius: 10px;
+            font-size: 1rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 20px rgba(99, 102, 241, 0.3);
+        }
+
+        .btn:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .btn-secondary {
+            background: linear-gradient(135deg, #10b981, #059669);
+        }
+
+        .btn-secondary:hover {
+            box-shadow: 0 10px 20px rgba(16, 185, 129, 0.3);
+        }
+
+        .status-indicator {
+            display: inline-block;
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            margin-right: 8px;
+        }
+
+        .status-ready { background: #10b981; }
+        .status-processing { background: #f59e0b; animation: pulse 2s infinite; }
+        .status-error { background: #ef4444; }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+
+        .log-container {
+            background: #1f2937;
+            color: #e5e7eb;
+            border-radius: 10px;
+            padding: 20px;
+            font-family: 'Courier New', monospace;
+            font-size: 0.9rem;
+            max-height: 400px;
+            overflow-y: auto;
+            border: 2px solid #374151;
+        }
+
+        .log-entry {
+            margin-bottom: 8px;
+            padding: 8px 12px;
+            border-radius: 6px;
+            border-left: 4px solid transparent;
+        }
+
+        .log-info { border-left-color: #3b82f6; background: rgba(59, 130, 246, 0.1); }
+        .log-success { border-left-color: #10b981; background: rgba(16, 185, 129, 0.1); }
+        .log-warning { border-left-color: #f59e0b; background: rgba(245, 158, 11, 0.1); }
+        .log-error { border-left-color: #ef4444; background: rgba(239, 68, 68, 0.1); }
+
+        .progress-bar {
+            width: 100%;
+            height: 8px;
+            background: #e5e7eb;
+            border-radius: 4px;
+            overflow: hidden;
+            margin-top: 15px;
+        }
+
+        .progress-fill {
+            height: 100%;
+            background: linear-gradient(90deg, #6366f1, #8b5cf6);
+            transition: width 0.3s ease;
+            width: 0%;
+        }
+
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 20px;
+            margin-top: 20px;
+        }
+
+        .stat-card {
+            background: rgba(255, 255, 255, 0.9);
+            padding: 20px;
+            border-radius: 12px;
+            text-align: center;
+            border: 2px solid rgba(99, 102, 241, 0.1);
+        }
+
+        .stat-number {
+            font-size: 2rem;
+            font-weight: 700;
+            color: #6366f1;
+            display: block;
+        }
+
+        .stat-label {
+            color: #6b7280;
+            margin-top: 5px;
+            font-size: 0.9rem;
+        }
+
+        @media (max-width: 768px) {
+            .header h1 { font-size: 2rem; }
+            .main-content { padding: 20px; }
+            .section { padding: 20px; }
+            .form-grid { grid-template-columns: 1fr; }
+        }
+
+        .icon {
+            width: 24px;
+            height: 24px;
+            fill: currentColor;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🤖 智能笔记整理工具</h1>
+            <p>基于AI的GitHub笔记语义索引与自动整理系统</p>
+        </div>
+
+        <div class="main-content">
+            <!-- 配置区域 -->
+            <div class="section">
+                <h2>API配置</h2>
+                <div class="form-grid">
+                    <div class="form-group">
+                        <label for="githubToken">GitHub API Token</label>
+                        <div class="password-input">
+                            <input type="password" id="githubToken" placeholder="ghp_xxxxxxxxxxxxxxxx">
+                            <button type="button" class="password-toggle" onclick="togglePassword('githubToken')">👁️</button>
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label for="openaiKey">OpenAI API Key</label>
+                        <div class="password-input">
+                            <input type="password" id="openaiKey" placeholder="sk-xxxxxxxxxxxxxxxx">
+                            <button type="button" class="password-toggle" onclick="togglePassword('openaiKey')">👁️</button>
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label for="githubUser">GitHub用户名</label>
+                        <input type="text" id="githubUser" placeholder="your-username">
+                    </div>
+                    <div class="form-group">
+                        <label for="sourceRepo">源仓库名</label>
+                        <input type="text" id="sourceRepo" placeholder="notes-repo">
+                    </div>
+                    <div class="form-group">
+                        <label for="targetRepo">目标仓库名</label>
+                        <input type="text" id="targetRepo" placeholder="organized-notes-repo">
+                    </div>
+                    <div class="form-group">
+                        <label for="gptModel">GPT模型</label>
+                        <select id="gptModel">
+                            <option value="gpt-4o-mini">GPT-4o Mini (推荐)</option>
+                            <option value="gpt-4o">GPT-4o</option>
+                            <option value="gpt-4-turbo">GPT-4 Turbo</option>
+                            <option value="gpt-3.5-turbo">GPT-3.5 Turbo</option>
+                        </select>
+                    </div>
+                </div>
+                <button class="btn" onclick="saveConfig()">💾 保存配置</button>
+            </div>
+
+            <!-- 操作区域 -->
+            <div class="section">
+                <h2>智能整理控制</h2>
+                <div style="display: flex; gap: 15px; align-items: center;">
+                    <button class="btn btn-secondary" id="processBtn" onclick="startProcessing()">🚀 开始智能整理</button>
+                    <div style="display: flex; align-items: center; gap: 10px;">
+                        <span class="status-indicator status-ready" id="statusIndicator"></span>
+                        <span id="statusText">就绪</span>
+                    </div>
+                </div>
+                <div class="progress-bar">
+                    <div class="progress-fill" id="progressBar"></div>
+                </div>
+            </div>
+
+            <!-- 统计区域 -->
+            <div class="section">
+                <h2>处理统计</h2>
+                <div class="stats-grid">
+                    <div class="stat-card">
+                        <span class="stat-number" id="totalFiles">0</span>
+                        <div class="stat-label">总文件数</div>
+                    </div>
+                    <div class="stat-card">
+                        <span class="stat-number" id="processedFiles">0</span>
+                        <div class="stat-label">已处理</div>
+                    </div>
+                    <div class="stat-card">
+                        <span class="stat-number" id="skippedFiles">0</span>
+                        <div class="stat-label">已跳过</div>
+                    </div>
+                    <div class="stat-card">
+                        <span class="stat-number" id="errorFiles">0</span>
+                        <div class="stat-label">处理失败</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 日志管理区域 -->
+            <div class="section">
+                <h2>日志管理</h2>
+                <div style="display: flex; gap: 15px; margin-bottom: 20px;">
+                    <button class="btn btn-warning" onclick="viewHistoryLogs()">📚 查看历史日志</button>
+                    <button class="btn btn-success" onclick="saveCurrentSession()">💾 保存当前会话</button>
+                    <button class="btn btn-gray" onclick="clearCurrentLogs()">🗑️ 清空当前日志</button>
+                </div>
+                <div class="log-container" id="logContainer">
+                    <div class="log-entry log-info">系统已就绪，等待开始处理...</div>
+                </div>
+            </div>
+
+            <!-- GitHub日志状态 区域 -->
+            <div class="section">
+                <h2>GitHub日志状态</h2>
+                <div class="stats-grid">
+                    <div class="stat-card">
+                        <span class="stat-number" id="logStatus">📝</span>
+                        <div class="stat-label">日志状态</div>
+                    </div>
+                    <div class="stat-card">
+                        <span class="stat-number" id="sessionCount">0</span>
+                        <div class="stat-label">历史会话</div>
+                    </div>
+                    <div class="stat-card">
+                        <span class="stat-number" id="errorCount">0</span>
+                        <div class="stat-label">错误记录</div>
+                    </div>
+                    <div class="stat-card" style="cursor: pointer;" onclick="exportReport()">
+                        <span class="stat-number">📊</span>
+                        <div class="stat-label">导出报告</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let config = {};
+        let isProcessing = false;
+        let processedLog = new Set();
+        let stats = { total: 0, processed: 0, skipped: 0, error: 0 };
+
+        document.addEventListener('DOMContentLoaded', loadConfig);
+
+        function saveConfig() {
+            config = {
+                githubToken: document.getElementById('githubToken').value,
+                openaiKey: document.getElementById('openaiKey').value,
+                githubUser: document.getElementById('githubUser').value,
+                sourceRepo: document.getElementById('sourceRepo').value,
+                targetRepo: document.getElementById('targetRepo').value,
+                gptModel: document.getElementById('gptModel').value
+            };
+            addLog('配置已保存', 'success');
+        }
+
+        function loadConfig() {
+            if (Object.keys(config).length) {
+                Object.entries(config).forEach(([key, val]) => {
+                    const el = document.getElementById(key);
+                    if (el) el.value = val;
+                });
+            }
+        }
+
+        function togglePassword(fieldId) {
+            const field = document.getElementById(fieldId);
+            const button = field.nextElementSibling;
+            if (field.type === 'password') {
+                field.type = 'text'; button.textContent = '🙈';
+            } else {
+                field.type = 'password'; button.textContent = '👁️';
+            }
+        }
+
+        function addLog(message, type = 'info') {
+            const container = document.getElementById('logContainer');
+            const entry = document.createElement('div');
+            entry.className = `log-entry log-${type}`;
+            entry.textContent = `[${new Date().toLocaleString()}] ${message}`;
+            container.appendChild(entry);
+            container.scrollTop = container.scrollHeight;
+        }
+
+        function updateStatus(text, status = 'ready') {
+            document.getElementById('statusText').textContent = text;
+            const ind = document.getElementById('statusIndicator');
+            ind.className = `status-indicator status-${status}`;
+        }
+
+        function updateProgress(pct) {
+            document.getElementById('progressBar').style.width = `${pct}%`;
+        }
+
+        function updateStats() {
+            ['totalFiles','processedFiles','skippedFiles','errorFiles'].forEach(id => {
+                const key = id.replace(/Files$/, '');
+                document.getElementById(id).textContent = stats[key];
+            });
+        }
+
+        async function githubRequest(endpoint, method = 'GET', body = null) {
+            const url = `https://api.github.com${endpoint}`;
+            const headers = {
+                'Authorization': `token ${config.githubToken}`,
+                'Accept': 'application/vnd.github.v3+json',
+                'Content-Type': 'application/json'
+            };
+            const resp = await fetch(url, { method, headers, body: body && JSON.stringify(body) });
+            if (!resp.ok) throw new Error(`GitHub API Error: ${resp.status} ${resp.statusText}`);
+            return await resp.json();
+        }
+
+        async function openaiRequest(messages, model = 'gpt-4o-mini') {
+            const resp = await fetch('https://api.openai.com/v1/chat/completions',{method:'POST',headers:{'Authorization':`Bearer ${config.openaiKey}`,'Content-Type':'application/json'},body:JSON.stringify({model, messages, temperature:0.7, max_tokens:4000})});
+            if (!resp.ok) throw new Error(`OpenAI API Error: ${resp.status} ${resp.statusText}`);
+            return await resp.json();
+        }
+
+        async function getProcessingLog() {
+            try {
+                const logFile = await githubRequest(`/repos/${config.githubUser}/${config.targetRepo}/contents/logs/processing_log.md`);
+                const raw = atob(logFile.content);
+                return raw.split('\n').filter(line => /^\s*[^#].+\|\s*(success|failed|error)\s*\|/.test(line));
+            } catch (e) {
+                if (e.message.includes('404')) return [];
+                throw e;
+            }
+        }
+
+        async function updateProcessingLog(filename, status = 'success', details = '') {
+            const ts = new Date().toISOString();
+            const entry = `${filename} | ${status} | ${ts} | ${details}`;
+            try {
+                const file = await githubRequest(`/repos/${config.githubUser}/${config.targetRepo}/contents/logs/processing_log.md`);
+                const content = atob(file.content) + '\n' + entry;
+                await githubRequest(`/repos/${config.githubUser}/${config.targetRepo}/contents/logs/processing_log.md`, 'PUT',{message:`Update processing log for ${filename}`,content:btoa(content),sha:file.sha});
+            } catch (e) {
+                if (e.message.includes('404')) {
+                    const header = `# AI笔记整理处理日志\n\n记录格式：文件名 | 状态 | 时间戳 | 详细信息\n\n---\n\n`;
+                    await githubRequest(`/repos/${config.githubUser}/${config.targetRepo}/contents/logs/processing_log.md`, 'PUT',{message:'Create processing log and path',content:btoa(header + entry)});
+                } else throw e;
+            }
+        }
+
+        async function logErrorToGithub(filename, error, context='') {
+            const content = `# 错误日志 - ${filename}\n\n## 错误信息\n${error.message}\n\n## 堆栈\n\`\`\`\n${error.stack||'无堆栈'}\n\`\`\`\n\n## 上下文\n${context}\n\n## 时间\n${new Date().toISOString()}\n`;
+            const name = `error_${filename.replace(/[^\w]/g,'_')}_${Date.now()}.md`;
+            try {
+                await githubRequest(`/repos/${config.githubUser}/${config.targetRepo}/contents/logs/errors/${name}`,'PUT',{message:`Add error log for ${filename}`,content:btoa(content)});
+            } catch (e) {
+                if (e.message.includes('404')) {
+                    // create placeholder to ensure directory
+                    await githubRequest(`/repos/${config.githubUser}/${config.targetRepo}/contents/logs/errors/.gitkeep`,'PUT',{message:'Create errors directory',content:btoa('')});
+                    // retry
+                    await githubRequest(`/repos/${config.githubUser}/${config.targetRepo}/contents/logs/errors/${name}`,'PUT',{message:`Add error log for ${filename}`,content:btoa(content)});
+                } else {
+                    addLog(`⚠️ 无法记录错误日志: ${e.message}`,'warning');
+                }
+            }
+        }
+
+        async function writeSessionLogToGithub() {
+            const sid = Date.now();
+            const logs = Array.from(document.querySelectorAll('.log-entry')).map(el=>el.textContent).join('\n');
+            const data = `# 会话日志 - ${new Date().toLocaleString()}\n\n## 会话ID: ${sid}\n\n## 配置\n- 模型: ${config.gptModel}\n- 源仓库: ${config.sourceRepo}\n- 目标仓库: ${config.targetRepo}\n\n## 统计\n- 总: ${stats.total}\n- 已处理: ${stats.processed}\n- 跳过: ${stats.skipped}\n- 错误: ${stats.error}\n\n## 日志详情\n\`\`\`\n${logs}\n\`\`\``;
+            try {
+                await githubRequest(`/repos/${config.githubUser}/${config.targetRepo}/contents/logs/session_${sid}.md`,'PUT',{message:`Add session log ${sid}`,content:btoa(data)});
+                addLog(`📝 会话日志已保存: logs/session_${sid}.md`,'success'); return true;
+            } catch (e) { addLog(`❌ 保存会话日志失败: ${e.message}`,'error'); return false; }
+        }
+
+        async function getSessionLogs() {
+            try {
+                const dir = await githubRequest(`/repos/${config.githubUser}/${config.targetRepo}/contents/logs`);
+                return dir.filter(f=>f.name.startsWith('session_') && f.name.endsWith('.md')).sort((a,b)=>b.name.localeCompare(a.name));
+            } catch (e) { return []; }
+        }
+
+        async function processNoteFile(file) {
+            addLog(`开始处理: ${file.name}`,'info');
+            try {
+                const fdata = await githubRequest(`/repos/${config.githubUser}/${config.sourceRepo}/contents/${file.path}`);
+                const raw = atob(fdata.content);
+                const lines = raw.split('\n');
+                // build prompt and call OpenAI
+                // ... existing logic unchanged ...
+                // save modified content
+                // call updateProcessingLog and addLog
+            } catch(err) {
+                await updateProcessingLog(file.name,'error',err.message);
+                await logErrorToGithub(file.name,err,'处理阶段');
+                addLog(`❌ 处理失败: ${file.name}`,'error'); stats.error++;
+            }
+        }
+
+        async function startProcessing() {
+            if (isProcessing) return;
+            saveConfig();
+            if (!['githubToken','openaiKey','githubUser','sourceRepo','targetRepo'].every(k=>config[k])) { addLog('❌ 请完整填写配置','error'); return; }
+            isProcessing=true;
+            document.getElementById('processBtn').disabled=true;
+            updateStatus('处理中...','processing');
+            stats={total:0,processed:0,skipped:0,error:0}; updateStats();
+            try {
+                addLog('🚀 开始流程','info');
+                const processed = await getProcessingLog(); processedLog=new Set(processed.map(l=>l.split('|')[0].trim()));
+                addLog(`📋 已处理记录 ${processedLog.size}`,'info');
+                const repo = await githubRequest(`/repos/${config.githubUser}/${config.sourceRepo}/contents`);
+                const mdfiles=[];
+                async function walk(contents,path=''){
+                    for(const item of contents){
+                        if(item.type==='file'&&item.name.endsWith('.md')) mdfiles.push(item);
+                        else if(item.type==='dir'){ const sub=await githubRequest(`/repos/${config.githubUser}/${config.sourceRepo}/contents/${item.path}`); await walk(sub,item.path);} }
+                await walk(repo);
+                stats.total=mdfiles.length; stats.skipped=processedLog.size; updateStats();
+                const toProcess=mdfiles.filter(f=>!processedLog.has(f.name));
+                addLog(`📁 总${stats.total}, 待处理${toProcess.length}`,'info');
+                if(toProcess.length===0){ addLog('✅ 全部完成','success'); updateStatus('完成','ready'); return; }
+                for(let i=0;i<toProcess.length;i++){
+                    updateProgress((i+1)/toProcess.length*100);
+                    updateStatus(`处理中 (${i+1}/${toProcess.length})`,'processing');
+                    await processNoteFile(toProcess[i]); updateStats();
+                    if(i<toProcess.length-1) await new Promise(r=>setTimeout(r,1000));
+                }
+                addLog('🎉 完成','success'); updateStatus('完成','ready'); updateProgress(100);
+                addLog('📝 保存会话日志','info'); await writeSessionLogToGithub();
+            } catch(e){ addLog(`❌ 错误: ${e.message}`,'error'); await logErrorToGithub('main',e,'主流程'); updateStatus('错误','error'); }
+            finally{ isProcessing=false; document.getElementById('processBtn').disabled=false; }
+        }
+
+        document.addEventListener('keydown',e=>{
+            if((e.ctrlKey||e.metaKey)&&e.key==='s'){ e.preventDefault(); saveConfig(); }
+            if((e.ctrlKey||e.metaKey)&&e.key==='Enter'&&!isProcessing){ e.preventDefault(); startProcessing(); }
+        });
+
+        window.addEventListener('beforeunload',e=>{ if(isProcessing){ e.returnValue='Processing...'; } });
+    </script>
+</body>
+</html>

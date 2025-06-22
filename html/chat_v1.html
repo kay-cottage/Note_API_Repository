@@ -619,6 +619,7 @@
         let messages = [];
         let isConnected = false;
         let currentMode = 'chat';
+        let backupMode = 'auto';
 
         // 初始化
         document.addEventListener('DOMContentLoaded', function() {
@@ -901,6 +902,18 @@
             document.getElementById('backupContainer').classList.toggle('active', mode === 'backup');
         }
 
+        function switchBackupMode(mode) {
+            backupMode = mode;
+            
+            // 更新按钮状态
+            document.getElementById('autoBackupBtn').classList.toggle('active', mode === 'auto');
+            document.getElementById('manualBackupBtn').classList.toggle('active', mode === 'manual');
+            
+            // 显示/隐藏对应容器
+            document.getElementById('autoBackup').style.display = mode === 'auto' ? 'block' : 'none';
+            document.getElementById('manualBackup').classList.toggle('active', mode === 'manual');
+        }
+
         async function backupChatGPT() {
             const urlInput = document.getElementById('urlInput');
             const url = urlInput.value.trim();
@@ -958,28 +971,62 @@
 
         async function extractChatGPTContent(url) {
             try {
-                // 由于CORS限制，实际部署时需要使用代理服务器
-                // 这里提供一个模拟的实现，实际使用时需要后端支持
+                // 方法1: 尝试使用不同的CORS代理
+                const proxies = [
+                    `https://api.allorigins.win/get?url=${encodeURIComponent(url)}`,
+                    `https://cors-anywhere.herokuapp.com/${url}`,
+                    `https://thingproxy.freeboard.io/fetch/${url}`
+                ];
                 
-                // 尝试使用公共CORS代理
-                const proxyUrl = `https://cors-anywhere.herokuapp.com/${url}`;
-                
-                const response = await fetch(proxyUrl, {
-                    headers: {
-                        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
+                for (const proxyUrl of proxies) {
+                    try {
+                        addSystemMessage(`尝试通过代理提取内容...`);
+                        
+                        const response = await fetch(proxyUrl, {
+                            headers: {
+                                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
+                            }
+                        });
+                        
+                        if (!response.ok) continue;
+                        
+                        let html;
+                        if (proxyUrl.includes('allorigins')) {
+                            const data = await response.json();
+                            html = data.contents;
+                        } else {
+                            html = await response.text();
+                        }
+                        
+                        const result = parseChatGPTHTML(html);
+                        if (result && result.messages && result.messages.length > 0) {
+                            return result;
+                        }
+                        
+                    } catch (proxyError) {
+                        console.log(`代理 ${proxyUrl} 失败:`, proxyError);
+                        continue;
                     }
-                });
-                
-                if (!response.ok) {
-                    throw new Error(`HTTP ${response.status}: ${response.statusText}`);
                 }
                 
-                const html = await response.text();
-                return parseChatGPTHTML(html);
+                // 所有代理都失败了
+                throw new Error('所有CORS代理都无法访问，请使用手动备份功能');
                 
             } catch (error) {
-                // 如果直接访问失败，提供手动输入选项
-                throw new Error('无法自动提取内容，请使用支持CORS的代理服务器或手动复制对话内容');
+                // 提供更详细的错误信息和解决方案
+                const errorMsg = `
+无法自动提取ChatGPT内容，原因可能是：
+1. CORS跨域限制
+2. 代理服务器不可用
+3. 链接需要登录访问
+
+建议解决方案：
+1. 切换到"手动备份"模式
+2. 直接复制粘贴对话内容
+3. 或者使用其他CORS代理服务
+                `.trim();
+                
+                throw new Error(errorMsg);
             }
         }
 
@@ -1074,6 +1121,110 @@
             });
             
             return markdown;
+        }
+
+        async function backupManualContent() {
+            const title = document.getElementById('manualTitle').value.trim();
+            const content = document.getElementById('manualContent').value.trim();
+            
+            if (!title) {
+                addSystemMessage('请输入对话标题！');
+                return;
+            }
+            
+            if (!content) {
+                addSystemMessage('请输入对话内容！');
+                return;
+            }
+            
+            if (!isConnected) {
+                addSystemMessage('请先配置GitHub设置！');
+                openSettings();
+                return;
+            }
+
+            try {
+                addSystemMessage('正在处理手动输入的内容...');
+                
+                // 解析手动输入的内容
+                const chatData = parseManualContent(title, content);
+                
+                // 备份到GitHub
+                await backupToGitHub(chatData);
+                
+                addSystemMessage(`手动备份成功！标题: ${chatData.title}`);
+                
+                // 清空输入框
+                document.getElementById('manualTitle').value = '';
+                document.getElementById('manualContent').value = '';
+                
+            } catch (error) {
+                console.error('手动备份失败:', error);
+                addSystemMessage('备份失败: ' + error.message);
+            }
+        }
+
+        function parseManualContent(title, content) {
+            const messages = [];
+            const lines = content.split('\n');
+            let currentMessage = null;
+            
+            for (const line of lines) {
+                const trimmedLine = line.trim();
+                if (!trimmedLine) continue;
+                
+                // 检测用户消息
+                if (trimmedLine.match(/^(用户|User|我|Q)[:：]/i)) {
+                    if (currentMessage) {
+                        messages.push(currentMessage);
+                    }
+                    currentMessage = {
+                        role: 'user',
+                        content: trimmedLine.replace(/^(用户|User|我|Q)[:：]\s*/i, '')
+                    };
+                }
+                // 检测AI消息
+                else if (trimmedLine.match(/^(ChatGPT|GPT|AI|Assistant|助手|A)[:：]/i)) {
+                    if (currentMessage) {
+                        messages.push(currentMessage);
+                    }
+                    currentMessage = {
+                        role: 'assistant',
+                        content: trimmedLine.replace(/^(ChatGPT|GPT|AI|Assistant|助手|A)[:：]\s*/i, '')
+                    };
+                }
+                // 继续上一条消息
+                else if (currentMessage) {
+                    currentMessage.content += '\n' + trimmedLine;
+                }
+                // 如果没有明确标识，默认为用户消息
+                else {
+                    currentMessage = {
+                        role: 'user',
+                        content: trimmedLine
+                    };
+                }
+            }
+            
+            // 添加最后一条消息
+            if (currentMessage) {
+                messages.push(currentMessage);
+            }
+            
+            // 如果没有解析出消息，将整个内容作为一条消息
+            if (messages.length === 0) {
+                messages.push({
+                    role: 'user',
+                    content: content
+                });
+            }
+            
+            return {
+                title: title.replace(/[<>:"/\\|?*]/g, '-'),
+                messages: messages,
+                url: '手动输入',
+                extractedAt: new Date().toISOString()
+            };
         }
 
         function filterMessages(searchTerm) {

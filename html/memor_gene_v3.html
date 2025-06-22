@@ -1,0 +1,298 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <title>AI 笔记批量整理工具</title>
+    <style>
+      :root {
+        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, "Noto Sans", sans-serif, "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol", "Noto Color Emoji";
+        --bg: #f4f6f9;
+        --card: #fff;
+        --primary: #0969da;
+      }
+      body { margin: 0; background: var(--bg); }
+      .container { max-width: 960px; margin: auto; padding: 1rem; }
+      h1 { font-size: 1.5rem; text-align: center; margin-bottom: 1.2rem; }
+      form { display: grid; gap: .8rem; }
+      label { display: flex; flex-direction: column; font-size: .9rem; }
+      input, select, textarea, button {
+        padding: .55rem .75rem; border: 1px solid #d0d7de; border-radius: .5rem;
+        font-size: .9rem; line-height: 1.4;
+      }
+      input[type="checkbox"] { width: auto; margin-right: .5rem; }
+      button {
+        background: var(--primary); color: #fff; border: none; cursor: pointer;
+        transition: background .15s ease-in-out;
+      }
+      button:hover { background: #0353c3; }
+      .status { margin-top: 1rem; background: var(--card); border-radius: .75rem; padding: 1rem; max-height: 320px; overflow: auto; font-size: .8rem; }
+      @media (prefers-color-scheme: dark) {
+        :root { --bg: #0d1117; --card: #161b22; --primary: #2f81f7; }
+        body { color: #c9d1d9; }
+        input, select, textarea { background: #0d1117; color: #c9d1d9; border-color: #30363d; }
+        button { background: var(--primary); }
+        button:hover { background: #1d6cf2; }
+        .status { background: #161b22; }
+      }
+    </style>
+  </head>
+  <body>
+    <div class="container">
+      <h1>AI 笔记批量整理工具</h1>
+      <form id="config-form">
+        <label>GitHub Token（需要 repo 权限）
+          <input type="password" id="gh-token" required />
+        </label>
+        <label>GitHub 用户名
+          <input type="text" id="gh-user" required />
+        </label>
+        <label>仓库名
+          <input type="text" id="gh-repo" required />
+        </label>
+        <label>源目录（笔记原始 md 文件所在目录，如 notes/2025）
+          <input type="text" id="source-dir" value="notes" required />
+        </label>
+        <label>目标目录（AI 整理结果输出目录，例如 notes_ai）
+          <input type="text" id="target-dir" value="notes_ai" required />
+        </label>
+        <label>日志文件路径（存储已处理文件的列表）
+          <input type="text" id="log-file" value="notes_ai/ai-edit-log.json" required />
+        </label>
+        <label>OpenAI API Key
+          <input type="password" id="openai-key" required />
+        </label>
+        <label>模型
+          <select id="openai-model">
+            <option value="gpt-4o">gpt-4o</option>
+            <option value="gpt-4o-mini">gpt-4o-mini</option>
+            <option value="gpt-4-turbo">gpt-4-turbo</option>
+            <option value="gpt-3.5-turbo">gpt-3.5-turbo</option>
+          </select>
+        </label>
+        <label style="display:flex;align-items:center;">
+          <input type="checkbox" id="remember"> 记住以上设置（仅保存在浏览器本地）
+        </label>
+        <button id="run-btn" type="submit">运行 AI 整理</button>
+      </form>
+      <div class="status" id="status"></div>
+    </div>
+
+    <script>
+      /* ================================
+       * 工具：日志输出与状态追踪
+       * ============================== */
+      const statusBox = document.getElementById('status');
+      function log(msg, type = 'info') {
+        const el = document.createElement('div');
+        el.textContent = `[${new Date().toLocaleString()}] ${msg}`;
+        el.style.padding = '.2rem 0';
+        if (type === 'error') el.style.color = 'crimson';
+        statusBox.prepend(el);
+      }
+
+      /* ================================
+       * 工具：localStorage 设置持久化
+       * ============================== */
+      const fields = [
+        'gh-token', 'gh-user', 'gh-repo', 'source-dir', 'target-dir', 'log-file', 'openai-key', 'openai-model'
+      ];
+      (function loadSaved() {
+        if (localStorage.getItem('ai-note-remember') === 'true') {
+          fields.forEach(id => {
+            const v = localStorage.getItem('ai-note-' + id);
+            if (v !== null) document.getElementById(id).value = v;
+          });
+          document.getElementById('remember').checked = true;
+        }
+      })();
+
+      function saveSettings() {
+        if (document.getElementById('remember').checked) {
+          localStorage.setItem('ai-note-remember', 'true');
+          fields.forEach(id => {
+            localStorage.setItem('ai-note-' + id, document.getElementById(id).value);
+          });
+        } else {
+          localStorage.removeItem('ai-note-remember');
+          fields.forEach(id => localStorage.removeItem('ai-note-' + id));
+        }
+      }
+
+      /* ================================
+       * GitHub API 请求封装
+       * ============================== */
+      function ghRequest(method, path, token, body = undefined) {
+        return fetch(`https://api.github.com${path}`, {
+          method,
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Accept': 'application/vnd.github+json'
+          },
+          body: body ? JSON.stringify(body) : undefined
+        }).then(async res => {
+          if (!res.ok) {
+            const text = await res.text();
+            throw new Error(`GitHub API ${method} ${path} failed: ${res.status} ${text}`);
+          }
+          return res.json();
+        });
+      }
+
+      /* ================================
+       * 功能：列出目录下所有文件 (递归)
+       * ============================== */
+      async function listRepoFiles(user, repo, dir, token, all = []) {
+        const res = await ghRequest('GET', `/repos/${user}/${repo}/contents/${encodeURIComponent(dir)}`, token);
+        for (const item of res) {
+          if (item.type === 'file') {
+            all.push({ path: item.path, sha: item.sha });
+          } else if (item.type === 'dir') {
+            await listRepoFiles(user, repo, item.path, token, all);
+          }
+        }
+        return all;
+      }
+
+      /* ================================
+       * 功能：获取文件内容 (base64 -> utf8)
+       * ============================== */
+      async function getFileContent(user, repo, path, token) {
+        const res = await ghRequest('GET', `/repos/${user}/${repo}/contents/${encodeURIComponent(path)}`, token);
+        const content = atob(res.content.replace(/\n/g, ''));
+        return { content, sha: res.sha };
+      }
+
+      /* ================================
+       * 功能：提交文件（写入/覆盖）到目标目录
+       * ============================== */
+      async function commitFile(user, repo, path, token, content, message, sha = undefined) {
+        const base64Content = btoa(unescape(encodeURIComponent(content)));
+        const body = {
+          message,
+          content: base64Content,
+          committer: {
+            name: 'AI Note Bot',
+            email: 'ai-note-bot@example.com'
+          },
+          sha
+        };
+        return ghRequest('PUT', `/repos/${user}/${repo}/contents/${encodeURIComponent(path)}`, token, body);
+      }
+
+      /* ================================
+       * 功能：获取 AI 编辑日志文件（JSON 数组）
+       * ============================== */
+      async function loadLog(user, repo, path, token) {
+        try {
+          const { content, sha } = await getFileContent(user, repo, path, token);
+          return { list: JSON.parse(content), sha };
+        } catch (err) {
+          // 如果日志不存在，返回空列表
+          if (err.message.includes('404')) return { list: [], sha: undefined };
+          throw err;
+        }
+      }
+
+      /* ================================
+       * OpenAI API 调用封装
+       * ============================== */
+      async function openaiChat(apiKey, model, prompt) {
+        const res = await fetch('https://api.openai.com/v1/chat/completions', {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${apiKey}`,
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({
+            model,
+            messages: [
+              { role: 'system', content: '你是一位专业的 AI 笔记整理助手，请根据注释指示整理输入的 Markdown 笔记，保留原有层级结构，必要时插入注释、摘要、标签。输出完整 Markdown 文本。' },
+              { role: 'user', content: prompt }
+            ],
+            temperature: 0.3
+          })
+        });
+        if (!res.ok) {
+          const text = await res.text();
+          throw new Error(`OpenAI API error: ${res.status} ${text}`);
+        }
+        const data = await res.json();
+        return data.choices[0].message.content;
+      }
+
+      /* ================================
+       * 主入口：表单提交事件
+       * ============================== */
+      document.getElementById('config-form').addEventListener('submit', async e => {
+        e.preventDefault();
+        saveSettings();
+
+        const ghToken = document.getElementById('gh-token').value.trim();
+        const ghUser = document.getElementById('gh-user').value.trim();
+        const ghRepo = document.getElementById('gh-repo').value.trim();
+        const sourceDir = document.getElementById('source-dir').value.trim().replace(/^\/+|\/+$/g, '');
+        const targetDir = document.getElementById('target-dir').value.trim().replace(/^\/+|\/+$/g, '');
+        const logFile = document.getElementById('log-file').value.trim();
+        const openaiKey = document.getElementById('openai-key').value.trim();
+        const model = document.getElementById('openai-model').value;
+
+        log('开始加载文件列表…');
+        try {
+          const files = await listRepoFiles(ghUser, ghRepo, sourceDir, ghToken);
+          log(`源目录共发现 ${files.length} 个文件。`);
+
+          const { list: processed, sha: logSha } = await loadLog(ghUser, ghRepo, logFile, ghToken);
+          const processedSet = new Set(processed.map(p => p.path));
+
+          // 筛选未处理文件
+          const toProcess = files.filter(f => !processedSet.has(f.path) && f.path.endsWith('.md'));
+          log(`待处理文件：${toProcess.length} 个。`);
+
+          for (const file of toProcess) {
+            log(`处理文件：${file.path}`);
+            try {
+              const { content: originalContent } = await getFileContent(ghUser, ghRepo, file.path, ghToken);
+
+              // 构建提示词
+              const prompt = `以下是 Markdown 笔记文件内容：\n\n${originalContent}`;
+
+              // 调用 OpenAI 整理笔记
+              const editedContent = await openaiChat(openaiKey, model, prompt);
+
+              const targetPath = `${targetDir}/${file.path.substring(sourceDir.length + 1)}`;
+              await commitFile(
+                ghUser,
+                ghRepo,
+                targetPath,
+                ghToken,
+                editedContent,
+                `AI 笔记整理: ${file.path}`
+              );
+              log(`已提交整理后的文件到 ${targetPath}`);
+
+              // 更新日志列表
+              processed.push({ path: file.path, editedAt: new Date().toISOString() });
+            } catch (err) {
+              log(`文件处理失败: ${err.message}`, 'error');
+            }
+          }
+
+          // 保存日志文件
+          await commitFile(
+            ghUser,
+            ghRepo,
+            logFile,
+            ghToken,
+            JSON.stringify(processed, null, 2),
+            '更新 AI 笔记整理日志',
+            logSha
+          );
+          log('AI 笔记整理完成。');
+        } catch (err) {
+          log(err.message, 'error');
+        }
+      });
+    </script>
+  </body>
+</html>

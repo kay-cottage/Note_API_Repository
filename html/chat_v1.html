@@ -1,0 +1,1025 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>聊天备忘录 - GitHub同步</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC', 'Hiragino Sans GB', 'Microsoft YaHei', sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: 10px;
+        }
+
+        .container {
+            width: 100%;
+            max-width: 800px;
+            height: 90vh;
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(10px);
+            border-radius: 20px;
+            box-shadow: 0 8px 32px rgba(31, 38, 135, 0.37);
+            border: 1px solid rgba(255, 255, 255, 0.18);
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+
+        .header {
+            background: linear-gradient(90deg, #4CAF50, #45a049);
+            color: white;
+            padding: 20px;
+            text-align: center;
+            position: relative;
+        }
+
+        .header h1 {
+            font-size: 1.5rem;
+            margin-bottom: 5px;
+        }
+
+        .header .status {
+            font-size: 0.9rem;
+            opacity: 0.9;
+        }
+
+        .settings-btn {
+            position: absolute;
+            right: 20px;
+            top: 50%;
+            transform: translateY(-50%);
+            background: rgba(255, 255, 255, 0.2);
+            border: none;
+            color: white;
+            padding: 8px 12px;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .settings-btn:hover {
+            background: rgba(255, 255, 255, 0.3);
+        }
+
+        .search-container {
+            padding: 15px 20px;
+            background: #f8f9fa;
+            border-bottom: 1px solid #e9ecef;
+        }
+
+        .search-box {
+            width: 100%;
+            padding: 12px 16px;
+            border: 2px solid #e9ecef;
+            border-radius: 25px;
+            outline: none;
+            font-size: 14px;
+            transition: all 0.3s ease;
+        }
+
+        .search-box:focus {
+            border-color: #4CAF50;
+            box-shadow: 0 0 0 3px rgba(76, 175, 80, 0.1);
+        }
+
+        .chat-container {
+            flex: 1;
+            overflow-y: auto;
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+        }
+
+        .message {
+            max-width: 80%;
+            padding: 12px 16px;
+            border-radius: 18px;
+            word-wrap: break-word;
+            animation: slideIn 0.3s ease-out;
+            position: relative;
+        }
+
+        .message.user {
+            align-self: flex-end;
+            background: linear-gradient(135deg, #4CAF50, #45a049);
+            color: white;
+            border-bottom-right-radius: 4px;
+        }
+
+        .message.system {
+            align-self: flex-start;
+            background: #f1f3f4;
+            color: #333;
+            border-bottom-left-radius: 4px;
+        }
+
+        .message-time {
+            font-size: 0.75rem;
+            opacity: 0.7;
+            margin-top: 4px;
+        }
+
+        .input-container {
+            padding: 20px;
+            background: #f8f9fa;
+            border-top: 1px solid #e9ecef;
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+
+        .input-row {
+            display: flex;
+            gap: 12px;
+            align-items: flex-end;
+        }
+
+        .mode-toggle {
+            display: flex;
+            background: #e9ecef;
+            border-radius: 25px;
+            padding: 4px;
+            margin-bottom: 12px;
+        }
+
+        .mode-btn {
+            flex: 1;
+            padding: 8px 16px;
+            border: none;
+            background: none;
+            border-radius: 20px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            font-size: 14px;
+            color: #666;
+        }
+
+        .mode-btn.active {
+            background: #4CAF50;
+            color: white;
+            box-shadow: 0 2px 8px rgba(76, 175, 80, 0.3);
+        }
+
+        .backup-container {
+            display: none;
+            flex-direction: column;
+            gap: 12px;
+        }
+
+        .backup-container.active {
+            display: flex;
+        }
+
+        .url-input {
+            flex: 1;
+            padding: 12px 16px;
+            border: 2px solid #e9ecef;
+            border-radius: 22px;
+            outline: none;
+            font-size: 14px;
+            transition: all 0.3s ease;
+        }
+
+        .url-input:focus {
+            border-color: #4CAF50;
+            box-shadow: 0 0 0 3px rgba(76, 175, 80, 0.1);
+        }
+
+        .backup-btn {
+            width: 44px;
+            height: 44px;
+            background: linear-gradient(135deg, #FF6B6B, #FF5252);
+            border: none;
+            border-radius: 50%;
+            color: white;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.3s ease;
+            flex-shrink: 0;
+        }
+
+        .backup-btn:hover {
+            transform: scale(1.05);
+            box-shadow: 0 4px 12px rgba(255, 107, 107, 0.3);
+        }
+
+        .backup-btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .message-input {
+            flex: 1;
+            min-height: 44px;
+            max-height: 120px;
+            padding: 12px 16px;
+            border: 2px solid #e9ecef;
+            border-radius: 22px;
+            outline: none;
+            resize: none;
+            font-family: inherit;
+            font-size: 14px;
+            line-height: 1.4;
+            transition: all 0.3s ease;
+        }
+
+        .message-input:focus {
+            border-color: #4CAF50;
+            box-shadow: 0 0 0 3px rgba(76, 175, 80, 0.1);
+        }
+
+        .send-btn {
+            width: 44px;
+            height: 44px;
+            background: linear-gradient(135deg, #4CAF50, #45a049);
+            border: none;
+            border-radius: 50%;
+            color: white;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.3s ease;
+            flex-shrink: 0;
+        }
+
+        .send-btn:hover {
+            transform: scale(1.05);
+            box-shadow: 0 4px 12px rgba(76, 175, 80, 0.3);
+        }
+
+        .send-btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.5);
+            z-index: 1000;
+            justify-content: center;
+            align-items: center;
+            padding: 20px;
+        }
+
+        .modal-content {
+            background: white;
+            border-radius: 16px;
+            padding: 30px;
+            width: 100%;
+            max-width: 500px;
+            max-height: 80vh;
+            overflow-y: auto;
+        }
+
+        .modal-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 25px;
+        }
+
+        .modal-header h2 {
+            color: #333;
+            font-size: 1.3rem;
+        }
+
+        .close-btn {
+            background: none;
+            border: none;
+            font-size: 24px;
+            cursor: pointer;
+            color: #666;
+            padding: 4px;
+        }
+
+        .form-group {
+            margin-bottom: 20px;
+        }
+
+        .form-group label {
+            display: block;
+            margin-bottom: 8px;
+            color: #333;
+            font-weight: 500;
+        }
+
+        .form-group input {
+            width: 100%;
+            padding: 12px 16px;
+            border: 2px solid #e9ecef;
+            border-radius: 8px;
+            outline: none;
+            font-size: 14px;
+            transition: all 0.3s ease;
+        }
+
+        .form-group input:focus {
+            border-color: #4CAF50;
+            box-shadow: 0 0 0 3px rgba(76, 175, 80, 0.1);
+        }
+
+        .btn-primary {
+            background: linear-gradient(135deg, #4CAF50, #45a049);
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 14px;
+            transition: all 0.3s ease;
+            width: 100%;
+        }
+
+        .btn-primary:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 4px 12px rgba(76, 175, 80, 0.3);
+        }
+
+        .loading {
+            display: inline-block;
+            width: 16px;
+            height: 16px;
+            border: 2px solid rgba(255, 255, 255, 0.3);
+            border-radius: 50%;
+            border-top-color: white;
+            animation: spin 1s ease-in-out infinite;
+        }
+
+        @keyframes slideIn {
+            from {
+                opacity: 0;
+                transform: translateY(10px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
+        /* 响应式设计 */
+        @media (max-width: 768px) {
+            .container {
+                height: 100vh;
+                border-radius: 0;
+                max-width: none;
+            }
+
+            .header {
+                padding: 15px;
+            }
+
+            .header h1 {
+                font-size: 1.3rem;
+            }
+
+            .message {
+                max-width: 85%;
+            }
+
+            .input-container {
+                padding: 15px;
+            }
+
+            .modal-content {
+                margin: 10px;
+                padding: 20px;
+            }
+        }
+
+        @media (max-width: 480px) {
+            .search-container {
+                padding: 10px 15px;
+            }
+
+            .chat-container {
+                padding: 15px;
+            }
+
+            .message {
+                max-width: 90%;
+                padding: 10px 14px;
+            }
+
+            .input-container {
+                padding: 15px;
+                gap: 8px;
+            }
+
+            .input-row {
+                gap: 8px;
+            }
+
+            .mode-toggle {
+                margin-bottom: 8px;
+            }
+
+            .mode-btn {
+                padding: 6px 12px;
+                font-size: 12px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>聊天备忘录</h1>
+            <div class="status" id="status">未连接</div>
+            <button class="settings-btn" onclick="openSettings()">⚙️</button>
+        </div>
+
+        <div class="search-container">
+            <input type="text" class="search-box" placeholder="搜索消息内容..." id="searchInput">
+        </div>
+
+        <div class="chat-container" id="chatContainer">
+            <div class="message system">
+                <div>欢迎使用聊天备忘录！请先配置GitHub设置。</div>
+                <div class="message-time" id="welcomeTime"></div>
+            </div>
+        </div>
+
+        <div class="input-container">
+            <div class="mode-toggle">
+                <button class="mode-btn active" id="chatModeBtn" onclick="switchMode('chat')">💬 聊天模式</button>
+                <button class="mode-btn" id="backupModeBtn" onclick="switchMode('backup')">🔄 AI备份</button>
+            </div>
+            
+            <div class="input-row" id="chatContainer">
+                <textarea class="message-input" id="messageInput" placeholder="输入消息..." rows="1"></textarea>
+                <button class="send-btn" id="sendBtn" onclick="sendMessage()">
+                    <span id="sendIcon">➤</span>
+                </button>
+            </div>
+            
+            <div class="backup-container" id="backupContainer">
+                <div class="input-row">
+                    <input type="text" class="url-input" id="urlInput" placeholder="粘贴ChatGPT分享链接...">
+                    <button class="backup-btn" id="backupBtn" onclick="backupChatGPT()">
+                        <span id="backupIcon">📥</span>
+                    </button>
+                </div>
+                <div style="font-size: 12px; color: #666; text-align: center;">
+                    支持ChatGPT分享链接自动提取和备份
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 设置模态框 -->
+    <div class="modal" id="settingsModal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2>GitHub 设置</h2>
+                <button class="close-btn" onclick="closeSettings()">&times;</button>
+            </div>
+            <form id="settingsForm">
+                <div class="form-group">
+                    <label for="username">GitHub 用户名</label>
+                    <input type="text" id="username" required>
+                </div>
+                <div class="form-group">
+                    <label for="repository">仓库名称</label>
+                    <input type="text" id="repository" required>
+                </div>
+                <div class="form-group">
+                    <label for="token">Personal Access Token</label>
+                    <input type="password" id="token" required>
+                </div>
+                <div class="form-group">
+                    <label for="basePath">聊天备忘录路径</label>
+                    <input type="text" id="basePath" placeholder="例如: chat-memos/">
+                </div>
+                <div class="form-group">
+                    <label for="backupPath">AI备份路径</label>
+                    <input type="text" id="backupPath" placeholder="例如: ai-backups/">
+                </div>
+                <button type="submit" class="btn-primary">保存设置</button>
+            </form>
+        </div>
+    </div>
+
+    <script>
+        // 全局变量
+        let config = {
+            username: '',
+            repository: '',
+            token: '',
+            basePath: 'chat-memos/',
+            backupPath: 'ai-backups/'
+        };
+        
+        let messages = [];
+        let isConnected = false;
+        let currentMode = 'chat';
+
+        // 初始化
+        document.addEventListener('DOMContentLoaded', function() {
+            loadConfig();
+            setupEventListeners();
+            updateWelcomeTime();
+            checkConnection();
+        });
+
+        function setupEventListeners() {
+            const messageInput = document.getElementById('messageInput');
+            const searchInput = document.getElementById('searchInput');
+            const urlInput = document.getElementById('urlInput');
+            
+            // 消息输入框事件
+            messageInput.addEventListener('keydown', function(e) {
+                if (e.key === 'Enter' && !e.shiftKey) {
+                    e.preventDefault();
+                    sendMessage();
+                }
+            });
+
+            // URL输入框事件
+            urlInput.addEventListener('keydown', function(e) {
+                if (e.key === 'Enter') {
+                    e.preventDefault();
+                    backupChatGPT();
+                }
+            });
+
+            // 自动调整输入框高度
+            messageInput.addEventListener('input', function() {
+                this.style.height = 'auto';
+                this.style.height = Math.min(this.scrollHeight, 120) + 'px';
+            });
+
+            // 搜索功能
+            searchInput.addEventListener('input', function() {
+                filterMessages(this.value);
+            });
+
+            // 设置表单提交
+            document.getElementById('settingsForm').addEventListener('submit', function(e) {
+                e.preventDefault();
+                saveConfig();
+            });
+        }
+
+        function updateWelcomeTime() {
+            const now = new Date();
+            document.getElementById('welcomeTime').textContent = formatTime(now);
+        }
+
+        function loadConfig() {
+            const saved = JSON.parse(JSON.stringify(config)); // 使用内存存储代替localStorage
+            
+            if (saved.username) {
+                config = saved;
+                document.getElementById('username').value = config.username;
+                document.getElementById('repository').value = config.repository;
+                document.getElementById('token').value = config.token;
+                document.getElementById('basePath').value = config.basePath;
+                document.getElementById('backupPath').value = config.backupPath;
+            }
+        }
+
+        function saveConfig() {
+            config.username = document.getElementById('username').value;
+            config.repository = document.getElementById('repository').value;
+            config.token = document.getElementById('token').value;
+            config.basePath = document.getElementById('basePath').value || 'chat-memos/';
+            config.backupPath = document.getElementById('backupPath').value || 'ai-backups/';
+            
+            // 保存到内存 (在实际环境中可以使用localStorage)
+            // localStorage.setItem('chatMemoConfig', JSON.stringify(config));
+            
+            closeSettings();
+            checkConnection();
+            addSystemMessage('设置已保存！');
+        }
+
+        function checkConnection() {
+            if (config.username && config.repository && config.token) {
+                isConnected = true;
+                document.getElementById('status').textContent = `已连接到 ${config.username}/${config.repository}`;
+            } else {
+                isConnected = false;
+                document.getElementById('status').textContent = '未配置';
+            }
+        }
+
+        function openSettings() {
+            document.getElementById('settingsModal').style.display = 'flex';
+        }
+
+        function closeSettings() {
+            document.getElementById('settingsModal').style.display = 'none';
+        }
+
+        async function sendMessage() {
+            const input = document.getElementById('messageInput');
+            const message = input.value.trim();
+            
+            if (!message) return;
+            
+            if (!isConnected) {
+                addSystemMessage('请先配置GitHub设置！');
+                openSettings();
+                return;
+            }
+
+            // 显示发送状态
+            const sendBtn = document.getElementById('sendBtn');
+            const sendIcon = document.getElementById('sendIcon');
+            sendBtn.disabled = true;
+            sendIcon.innerHTML = '<div class="loading"></div>';
+
+            // 添加消息到界面
+            addMessage(message, 'user');
+            input.value = '';
+            input.style.height = 'auto';
+
+            try {
+                // 发送到GitHub
+                await saveToGitHub(message);
+                addSystemMessage('消息已保存到GitHub');
+            } catch (error) {
+                console.error('保存失败:', error);
+                addSystemMessage('保存失败: ' + error.message);
+            } finally {
+                // 恢复发送按钮
+                sendBtn.disabled = false;
+                sendIcon.innerHTML = '➤';
+            }
+        }
+
+        function addMessage(content, type = 'user') {
+            const chatContainer = document.getElementById('chatContainer');
+            const messageDiv = document.createElement('div');
+            messageDiv.className = `message ${type}`;
+            
+            const now = new Date();
+            const timeStr = formatTime(now);
+            
+            messageDiv.innerHTML = `
+                <div>${content}</div>
+                <div class="message-time">${timeStr}</div>
+            `;
+            
+            chatContainer.appendChild(messageDiv);
+            chatContainer.scrollTop = chatContainer.scrollHeight;
+            
+            // 保存到内存
+            messages.push({
+                content,
+                type,
+                timestamp: now.toISOString()
+            });
+        }
+
+        function addSystemMessage(content) {
+            addMessage(content, 'system');
+        }
+
+        function formatTime(date) {
+            return date.toLocaleString('zh-CN', {
+                year: 'numeric',
+                month: '2-digit',
+                day: '2-digit',
+                hour: '2-digit',
+                minute: '2-digit',
+                second: '2-digit'
+            });
+        }
+
+        async function saveToGitHub(message) {
+            const now = new Date();
+            const year = now.getFullYear();
+            const month = String(now.getMonth() + 1).padStart(2, '0');
+            const day = String(now.getDate()).padStart(2, '0');
+            
+            const folderPath = `${config.basePath}${year}/${month}`;
+            const fileName = `${year}-${month}-${day}.md`;
+            const filePath = `${folderPath}/${fileName}`;
+            
+            const timestamp = formatTime(now);
+            const messageContent = `\n## ${timestamp}\n${message}\n`;
+
+            try {
+                // 检查文件是否存在
+                const existingFile = await getFileFromGitHub(filePath);
+                
+                let newContent;
+                let sha;
+                
+                if (existingFile) {
+                    // 文件存在，追加内容
+                    const existingContent = atob(existingFile.content);
+                    newContent = existingContent + messageContent;
+                    sha = existingFile.sha;
+                } else {
+                    // 新文件
+                    newContent = `# 聊天备忘录 - ${year}年${month}月${day}日\n${messageContent}`;
+                }
+
+                // 上传文件
+                await uploadToGitHub(filePath, newContent, sha);
+                
+            } catch (error) {
+                throw new Error(`GitHub API错误: ${error.message}`);
+            }
+        }
+
+        async function getFileFromGitHub(path) {
+            const url = `https://api.github.com/repos/${config.username}/${config.repository}/contents/${path}`;
+            
+            try {
+                const response = await fetch(url, {
+                    headers: {
+                        'Authorization': `token ${config.token}`,
+                        'Content-Type': 'application/json'
+                    }
+                });
+                
+                if (response.status === 404) {
+                    return null; // 文件不存在
+                }
+                
+                if (!response.ok) {
+                    throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+                }
+                
+                return await response.json();
+            } catch (error) {
+                if (error.message.includes('404')) {
+                    return null;
+                }
+                throw error;
+            }
+        }
+
+        async function uploadToGitHub(path, content, sha) {
+            const url = `https://api.github.com/repos/${config.username}/${config.repository}/contents/${path}`;
+            
+            const data = {
+                message: `Add chat memo: ${new Date().toISOString()}`,
+                content: btoa(unescape(encodeURIComponent(content))), // 正确处理中文编码
+            };
+            
+            if (sha) {
+                data.sha = sha; // 更新现有文件需要提供SHA
+            }
+
+            const response = await fetch(url, {
+                method: 'PUT',
+                headers: {
+                    'Authorization': `token ${config.token}`,
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify(data)
+            });
+
+            if (!response.ok) {
+                const errorData = await response.json();
+                throw new Error(`上传失败: ${errorData.message || response.statusText}`);
+            }
+
+            return await response.json();
+        }
+
+        function switchMode(mode) {
+            currentMode = mode;
+            
+            // 更新按钮状态
+            document.getElementById('chatModeBtn').classList.toggle('active', mode === 'chat');
+            document.getElementById('backupModeBtn').classList.toggle('active', mode === 'backup');
+            
+            // 显示/隐藏对应容器
+            document.getElementById('chatContainer').style.display = mode === 'chat' ? 'flex' : 'none';
+            document.getElementById('backupContainer').classList.toggle('active', mode === 'backup');
+        }
+
+        async function backupChatGPT() {
+            const urlInput = document.getElementById('urlInput');
+            const url = urlInput.value.trim();
+            
+            if (!url) {
+                addSystemMessage('请输入ChatGPT分享链接！');
+                return;
+            }
+            
+            if (!isConnected) {
+                addSystemMessage('请先配置GitHub设置！');
+                openSettings();
+                return;
+            }
+
+            // 验证链接格式
+            if (!url.includes('chat.openai.com') && !url.includes('chatgpt.com')) {
+                addSystemMessage('请输入有效的ChatGPT分享链接！');
+                return;
+            }
+
+            // 显示处理状态
+            const backupBtn = document.getElementById('backupBtn');
+            const backupIcon = document.getElementById('backupIcon');
+            backupBtn.disabled = true;
+            backupIcon.innerHTML = '<div class="loading"></div>';
+
+            try {
+                addSystemMessage('正在提取ChatGPT对话内容...');
+                
+                // 提取对话内容
+                const chatData = await extractChatGPTContent(url);
+                
+                if (!chatData || !chatData.title || !chatData.messages) {
+                    throw new Error('无法提取对话内容，请检查链接是否有效');
+                }
+
+                addSystemMessage(`提取成功！标题: ${chatData.title}`);
+                
+                // 备份到GitHub
+                await backupToGitHub(chatData);
+                
+                addSystemMessage('ChatGPT对话已成功备份到GitHub！');
+                urlInput.value = '';
+                
+            } catch (error) {
+                console.error('备份失败:', error);
+                addSystemMessage('备份失败: ' + error.message);
+            } finally {
+                // 恢复按钮状态
+                backupBtn.disabled = false;
+                backupIcon.innerHTML = '📥';
+            }
+        }
+
+        async function extractChatGPTContent(url) {
+            try {
+                // 由于CORS限制，实际部署时需要使用代理服务器
+                // 这里提供一个模拟的实现，实际使用时需要后端支持
+                
+                // 尝试使用公共CORS代理
+                const proxyUrl = `https://cors-anywhere.herokuapp.com/${url}`;
+                
+                const response = await fetch(proxyUrl, {
+                    headers: {
+                        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
+                    }
+                });
+                
+                if (!response.ok) {
+                    throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+                }
+                
+                const html = await response.text();
+                return parseChatGPTHTML(html);
+                
+            } catch (error) {
+                // 如果直接访问失败，提供手动输入选项
+                throw new Error('无法自动提取内容，请使用支持CORS的代理服务器或手动复制对话内容');
+            }
+        }
+
+        function parseChatGPTHTML(html) {
+            // 创建临时DOM解析HTML
+            const parser = new DOMParser();
+            const doc = parser.parseFromString(html, 'text/html');
+            
+            // 提取标题
+            const title = doc.querySelector('title')?.textContent || 
+                         doc.querySelector('h1')?.textContent || 
+                         '未知对话';
+            
+            // 提取对话消息
+            const messages = [];
+            
+            // ChatGPT的消息通常在特定的CSS类中
+            const messageElements = doc.querySelectorAll('[data-message-author-role], .message, .conversation-turn');
+            
+            messageElements.forEach(element => {
+                const role = element.getAttribute('data-message-author-role') || 
+                           (element.classList.contains('user') ? 'user' : 'assistant');
+                const content = element.textContent?.trim();
+                
+                if (content && content.length > 0) {
+                    messages.push({
+                        role: role,
+                        content: content
+                    });
+                }
+            });
+            
+            // 如果没有找到消息，尝试其他选择器
+            if (messages.length === 0) {
+                const allText = doc.body.textContent;
+                if (allText && allText.includes('ChatGPT')) {
+                    // 简单的文本提取
+                    messages.push({
+                        role: 'assistant',
+                        content: allText.substring(0, 1000) + '...'
+                    });
+                }
+            }
+            
+            return {
+                title: title.replace(/[<>:"/\\|?*]/g, '-'), // 清理文件名
+                messages: messages,
+                url: url,
+                extractedAt: new Date().toISOString()
+            };
+        }
+
+        async function backupToGitHub(chatData) {
+            const now = new Date();
+            const year = now.getFullYear();
+            const month = String(now.getMonth() + 1).padStart(2, '0');
+            const day = String(now.getDate()).padStart(2, '0');
+            const time = now.toTimeString().split(' ')[0].replace(/:/g, '-');
+            
+            const folderPath = `${config.backupPath}${year}/${month}`;
+            const fileName = `${year}-${month}-${day}_${time}_${chatData.title}.md`;
+            const filePath = `${folderPath}/${fileName}`;
+            
+            // 生成Markdown内容
+            const markdownContent = generateMarkdown(chatData);
+            
+            try {
+                // 直接上传新文件
+                await uploadToGitHub(filePath, markdownContent);
+                
+            } catch (error) {
+                throw new Error(`GitHub备份失败: ${error.message}`);
+            }
+        }
+
+        function generateMarkdown(chatData) {
+            let markdown = `# ${chatData.title}\n\n`;
+            markdown += `**备份时间**: ${new Date(chatData.extractedAt).toLocaleString('zh-CN')}\n`;
+            markdown += `**原始链接**: ${chatData.url}\n\n`;
+            markdown += `---\n\n`;
+            
+            chatData.messages.forEach((message, index) => {
+                const roleIcon = message.role === 'user' ? '👤' : '🤖';
+                const roleName = message.role === 'user' ? '用户' : 'ChatGPT';
+                
+                markdown += `## ${roleIcon} ${roleName}\n\n`;
+                markdown += `${message.content}\n\n`;
+                
+                if (index < chatData.messages.length - 1) {
+                    markdown += `---\n\n`;
+                }
+            });
+            
+            return markdown;
+        }
+
+        function filterMessages(searchTerm) {
+            const chatContainer = document.getElementById('chatContainer');
+            const messageElements = chatContainer.querySelectorAll('.message');
+            
+            if (!searchTerm) {
+                messageElements.forEach(el => el.style.display = 'block');
+                return;
+            }
+            
+            messageElements.forEach(el => {
+                const content = el.textContent.toLowerCase();
+                if (content.includes(searchTerm.toLowerCase())) {
+                    el.style.display = 'block';
+                } else {
+                    el.style.display = 'none';
+                }
+            });
+        }
+
+        // 点击模态框外部关闭
+        window.onclick = function(event) {
+            const modal = document.getElementById('settingsModal');
+            if (event.target === modal) {
+                closeSettings();
+            }
+        }
+    </script>
+</body>
+</html>

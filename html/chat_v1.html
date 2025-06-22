@@ -216,10 +216,113 @@
             box-shadow: 0 4px 12px rgba(255, 107, 107, 0.3);
         }
 
-        .backup-btn:disabled {
-            opacity: 0.5;
-            cursor: not-allowed;
-            transform: none;
+        .backup-mode-toggle {
+            display: flex;
+            background: #e9ecef;
+            border-radius: 20px;
+            padding: 3px;
+            margin-bottom: 12px;
+        }
+
+        .backup-mode-btn {
+            flex: 1;
+            padding: 6px 12px;
+            border: none;
+            background: none;
+            border-radius: 17px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            font-size: 12px;
+            color: #666;
+        }
+
+        .backup-mode-btn.active {
+            background: #FF6B6B;
+            color: white;
+            box-shadow: 0 2px 8px rgba(255, 107, 107, 0.3);
+        }
+
+        .cors-options {
+            display: flex;
+            gap: 8px;
+            margin-top: 8px;
+            align-items: center;
+        }
+
+        .cors-select {
+            flex: 1;
+            padding: 6px 12px;
+            border: 1px solid #e9ecef;
+            border-radius: 12px;
+            background: white;
+            font-size: 12px;
+            outline: none;
+        }
+
+        .custom-proxy-input {
+            flex: 1;
+            padding: 6px 12px;
+            border: 1px solid #e9ecef;
+            border-radius: 12px;
+            font-size: 12px;
+            outline: none;
+        }
+
+        .title-input {
+            width: 100%;
+            padding: 12px 16px;
+            border: 2px solid #e9ecef;
+            border-radius: 12px;
+            outline: none;
+            font-size: 14px;
+            margin-bottom: 8px;
+            transition: all 0.3s ease;
+        }
+
+        .title-input:focus {
+            border-color: #FF6B6B;
+            box-shadow: 0 0 0 3px rgba(255, 107, 107, 0.1);
+        }
+
+        .content-input {
+            width: 100%;
+            padding: 12px 16px;
+            border: 2px solid #e9ecef;
+            border-radius: 12px;
+            outline: none;
+            font-size: 14px;
+            margin-bottom: 8px;
+            resize: vertical;
+            min-height: 120px;
+            font-family: inherit;
+            line-height: 1.4;
+            transition: all 0.3s ease;
+        }
+
+        .content-input:focus {
+            border-color: #FF6B6B;
+            box-shadow: 0 0 0 3px rgba(255, 107, 107, 0.1);
+        }
+
+        .manual-options {
+            display: flex;
+            align-items: center;
+            flex: 1;
+            font-size: 14px;
+        }
+
+        .manual-options input[type="checkbox"] {
+            margin-right: 6px;
+        }
+
+        .backup-tips {
+            font-size: 11px;
+            color: #666;
+            text-align: center;
+            padding: 8px;
+            background: rgba(255, 107, 107, 0.05);
+            border-radius: 8px;
+            margin-top: 8px;
         }
 
         .message-input {
@@ -478,14 +581,45 @@
             </div>
             
             <div class="backup-container" id="backupContainer">
-                <div class="input-row">
-                    <input type="text" class="url-input" id="urlInput" placeholder="粘贴ChatGPT分享链接...">
-                    <button class="backup-btn" id="backupBtn" onclick="backupChatGPT()">
-                        <span id="backupIcon">📥</span>
-                    </button>
+                <div class="backup-mode-toggle">
+                    <button class="backup-mode-btn active" id="urlModeBtn" onclick="switchBackupMode('url')">🔗 链接模式</button>
+                    <button class="backup-mode-btn" id="manualModeBtn" onclick="switchBackupMode('manual')">✍️ 手动模式</button>
                 </div>
-                <div style="font-size: 12px; color: #666; text-align: center;">
-                    支持ChatGPT分享链接自动提取和备份
+                
+                <div class="url-backup" id="urlBackup">
+                    <div class="input-row">
+                        <input type="text" class="url-input" id="urlInput" placeholder="粘贴ChatGPT分享链接...">
+                        <button class="backup-btn" id="backupBtn" onclick="backupChatGPT()">
+                            <span id="backupIcon">📥</span>
+                        </button>
+                    </div>
+                    <div class="cors-options">
+                        <select id="corsProxy" class="cors-select">
+                            <option value="allorigins">AllOrigins (推荐)</option>
+                            <option value="corsproxy">CORS Proxy</option>
+                            <option value="thingproxy">ThingProxy</option>
+                            <option value="custom">自定义代理</option>
+                        </select>
+                        <input type="text" id="customProxy" class="custom-proxy-input" placeholder="自定义代理URL..." style="display: none;">
+                    </div>
+                </div>
+                
+                <div class="manual-backup" id="manualBackup" style="display: none;">
+                    <input type="text" class="title-input" id="titleInput" placeholder="对话标题...">
+                    <textarea class="content-input" id="contentInput" placeholder="粘贴完整的ChatGPT对话内容...&#10;&#10;支持格式：&#10;1. 直接复制ChatGPT页面内容&#10;2. 用户: 问题内容&#10;   ChatGPT: 回答内容&#10;3. 或任何文本格式" rows="6"></textarea>
+                    <div class="input-row">
+                        <div class="manual-options">
+                            <label><input type="checkbox" id="autoFormat" checked> 自动格式化</label>
+                        </div>
+                        <button class="backup-btn" onclick="backupManual()">
+                            <span>💾</span>
+                        </button>
+                    </div>
+                </div>
+                
+                <div class="backup-tips">
+                    <div id="urlTips">💡 如遇CORS问题，可尝试切换代理服务器或使用手动模式</div>
+                    <div id="manualTips" style="display: none;">💡 直接从ChatGPT页面Ctrl+A全选复制，或按对话格式粘贴</div>
                 </div>
             </div>
         </div>
@@ -537,6 +671,7 @@
         let messages = [];
         let isConnected = false;
         let currentMode = 'chat';
+        let backupMode = 'url';
 
         // 初始化
         document.addEventListener('DOMContentLoaded', function() {
@@ -550,6 +685,8 @@
             const messageInput = document.getElementById('messageInput');
             const searchInput = document.getElementById('searchInput');
             const urlInput = document.getElementById('urlInput');
+            const corsProxy = document.getElementById('corsProxy');
+            const customProxy = document.getElementById('customProxy');
             
             // 消息输入框事件
             messageInput.addEventListener('keydown', function(e) {
@@ -565,6 +702,11 @@
                     e.preventDefault();
                     backupChatGPT();
                 }
+            });
+
+            // CORS代理选择
+            corsProxy.addEventListener('change', function() {
+                customProxy.style.display = this.value === 'custom' ? 'block' : 'none';
             });
 
             // 自动调整输入框高度
@@ -816,7 +958,116 @@
             
             // 显示/隐藏对应容器
             document.getElementById('chatContainer').style.display = mode === 'chat' ? 'flex' : 'none';
-            document.getElementById('backupContainer').classList.toggle('active', mode === 'backup');
+        function switchBackupMode(mode) {
+            backupMode = mode;
+            
+            // 更新按钮状态
+            document.getElementById('urlModeBtn').classList.toggle('active', mode === 'url');
+            document.getElementById('manualModeBtn').classList.toggle('active', mode === 'manual');
+            
+            // 显示/隐藏对应内容
+            document.getElementById('urlBackup').style.display = mode === 'url' ? 'block' : 'none';
+            document.getElementById('manualBackup').style.display = mode === 'manual' ? 'block' : 'none';
+            document.getElementById('urlTips').style.display = mode === 'url' ? 'block' : 'none';
+            document.getElementById('manualTips').style.display = mode === 'manual' ? 'block' : 'none';
+        }
+
+        async function backupManual() {
+            const title = document.getElementById('titleInput').value.trim();
+            const content = document.getElementById('contentInput').value.trim();
+            const autoFormat = document.getElementById('autoFormat').checked;
+            
+            if (!title || !content) {
+                addSystemMessage('请输入标题和对话内容！');
+                return;
+            }
+            
+            if (!isConnected) {
+                addSystemMessage('请先配置GitHub设置！');
+                openSettings();
+                return;
+            }
+
+            try {
+                addSystemMessage('正在处理手动输入的对话内容...');
+                
+                // 解析内容
+                const chatData = parseManualContent(title, content, autoFormat);
+                
+                // 备份到GitHub
+                await backupToGitHub(chatData);
+                
+                addSystemMessage('手动对话内容已成功备份到GitHub！');
+                
+                // 清空输入
+                document.getElementById('titleInput').value = '';
+                document.getElementById('contentInput').value = '';
+                
+            } catch (error) {
+                console.error('手动备份失败:', error);
+                addSystemMessage('备份失败: ' + error.message);
+            }
+        }
+
+        function parseManualContent(title, content, autoFormat) {
+            const messages = [];
+            
+            if (autoFormat) {
+                // 智能解析对话格式
+                const lines = content.split('\n').filter(line => line.trim());
+                let currentMessage = null;
+                
+                for (const line of lines) {
+                    const trimmedLine = line.trim();
+                    
+                    // 检测常见的对话格式
+                    if (trimmedLine.match(/^(用户|User|我|Q|问)[:：]/i)) {
+                        if (currentMessage) messages.push(currentMessage);
+                        currentMessage = {
+                            role: 'user',
+                            content: trimmedLine.replace(/^(用户|User|我|Q|问)[:：]\s*/i, '')
+                        };
+                    } else if (trimmedLine.match(/^(ChatGPT|GPT|AI|Assistant|答|A|回答)[:：]/i)) {
+                        if (currentMessage) messages.push(currentMessage);
+                        currentMessage = {
+                            role: 'assistant',
+                            content: trimmedLine.replace(/^(ChatGPT|GPT|AI|Assistant|答|A|回答)[:：]\s*/i, '')
+                        };
+                    } else if (currentMessage) {
+                        // 继续当前消息
+                        currentMessage.content += '\n' + trimmedLine;
+                    } else {
+                        // 如果没有明确标识，假设是用户消息
+                        currentMessage = {
+                            role: 'user',
+                            content: trimmedLine
+                        };
+                    }
+                }
+                
+                if (currentMessage) messages.push(currentMessage);
+                
+                // 如果没有解析出对话，将整个内容作为一条消息
+                if (messages.length === 0) {
+                    messages.push({
+                        role: 'assistant',
+                        content: content
+                    });
+                }
+            } else {
+                // 不自动格式化，直接保存原始内容
+                messages.push({
+                    role: 'mixed',
+                    content: content
+                });
+            }
+            
+            return {
+                title: title.replace(/[<>:"/\\|?*]/g, '-'),
+                messages: messages,
+                url: '手动输入',
+                extractedAt: new Date().toISOString()
+            };
         }
 
         async function backupChatGPT() {
@@ -875,13 +1126,33 @@
         }
 
         async function extractChatGPTContent(url) {
+            const corsProxy = document.getElementById('corsProxy').value;
+            const customProxy = document.getElementById('customProxy').value;
+            
+            let proxyUrl;
+            
+            // 选择代理服务器
+            switch (corsProxy) {
+                case 'allorigins':
+                    proxyUrl = `https://api.allorigins.win/get?url=${encodeURIComponent(url)}`;
+                    break;
+                case 'corsproxy':
+                    proxyUrl = `https://corsproxy.io/?${encodeURIComponent(url)}`;
+                    break;
+                case 'thingproxy':
+                    proxyUrl = `https://thingproxy.freeboard.io/fetch/${url}`;
+                    break;
+                case 'custom':
+                    if (!customProxy) {
+                        throw new Error('请输入自定义代理URL');
+                    }
+                    proxyUrl = `${customProxy}${url}`;
+                    break;
+                default:
+                    proxyUrl = `https://api.allorigins.win/get?url=${encodeURIComponent(url)}`;
+            }
+            
             try {
-                // 由于CORS限制，实际部署时需要使用代理服务器
-                // 这里提供一个模拟的实现，实际使用时需要后端支持
-                
-                // 尝试使用公共CORS代理
-                const proxyUrl = `https://cors-anywhere.herokuapp.com/${url}`;
-                
                 const response = await fetch(proxyUrl, {
                     headers: {
                         'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
@@ -889,61 +1160,106 @@
                 });
                 
                 if (!response.ok) {
-                    throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+                    throw new Error(`代理服务器响应错误: ${response.status}`);
                 }
                 
-                const html = await response.text();
-                return parseChatGPTHTML(html);
+                let html;
+                if (corsProxy === 'allorigins') {
+                    const data = await response.json();
+                    html = data.contents;
+                } else {
+                    html = await response.text();
+                }
+                
+                return parseChatGPTHTML(html, url);
                 
             } catch (error) {
-                // 如果直接访问失败，提供手动输入选项
-                throw new Error('无法自动提取内容，请使用支持CORS的代理服务器或手动复制对话内容');
+                // 尝试其他代理
+                if (corsProxy === 'allorigins') {
+                    addSystemMessage('AllOrigins代理失败，尝试其他代理...');
+                    document.getElementById('corsProxy').value = 'corsproxy';
+                    return await extractChatGPTContent(url);
+                } else if (corsProxy === 'corsproxy') {
+                    addSystemMessage('CORS Proxy失败，尝试ThingProxy...');
+                    document.getElementById('corsProxy').value = 'thingproxy';
+                    return await extractChatGPTContent(url);
+                } else {
+                    throw new Error('所有代理服务器都无法访问，请尝试手动模式');
+                }
             }
         }
 
-        function parseChatGPTHTML(html) {
+        function parseChatGPTHTML(html, url) {
             // 创建临时DOM解析HTML
             const parser = new DOMParser();
             const doc = parser.parseFromString(html, 'text/html');
             
-            // 提取标题
-            const title = doc.querySelector('title')?.textContent || 
-                         doc.querySelector('h1')?.textContent || 
-                         '未知对话';
+            // 提取标题 - 尝试多种选择器
+            let title = doc.querySelector('title')?.textContent || 
+                       doc.querySelector('h1')?.textContent || 
+                       doc.querySelector('[class*="title"]')?.textContent ||
+                       doc.querySelector('meta[property="og:title"]')?.getAttribute('content') ||
+                       '未知对话';
+            
+            // 清理标题
+            title = title.replace(/\s*-\s*ChatGPT$/i, '').trim();
             
             // 提取对话消息
             const messages = [];
             
-            // ChatGPT的消息通常在特定的CSS类中
-            const messageElements = doc.querySelectorAll('[data-message-author-role], .message, .conversation-turn');
+            // 尝试多种ChatGPT消息选择器
+            const messageSelectors = [
+                '[data-message-author-role]',
+                '[class*="message"]',
+                '[class*="conversation"]',
+                '[class*="chat"]',
+                '.prose',
+                'div[class*="markdown"]'
+            ];
+            
+            let messageElements = [];
+            for (const selector of messageSelectors) {
+                messageElements = doc.querySelectorAll(selector);
+                if (messageElements.length > 0) break;
+            }
             
             messageElements.forEach(element => {
                 const role = element.getAttribute('data-message-author-role') || 
-                           (element.classList.contains('user') ? 'user' : 'assistant');
+                           (element.textContent.toLowerCase().includes('user') ? 'user' : 'assistant');
                 const content = element.textContent?.trim();
                 
-                if (content && content.length > 0) {
+                if (content && content.length > 10) {
                     messages.push({
-                        role: role,
+                        role: role === 'user' ? 'user' : 'assistant',
                         content: content
                     });
                 }
             });
             
-            // 如果没有找到消息，尝试其他选择器
+            // 如果没有找到结构化消息，尝试提取页面文本
             if (messages.length === 0) {
-                const allText = doc.body.textContent;
-                if (allText && allText.includes('ChatGPT')) {
-                    // 简单的文本提取
-                    messages.push({
-                        role: 'assistant',
-                        content: allText.substring(0, 1000) + '...'
+                const bodyText = doc.body?.textContent || '';
+                if (bodyText.length > 100) {
+                    // 尝试简单的文本分割
+                    const paragraphs = bodyText.split('\n\n').filter(p => p.trim().length > 20);
+                    paragraphs.forEach((paragraph, index) => {
+                        if (paragraph.trim()) {
+                            messages.push({
+                                role: index % 2 === 0 ? 'user' : 'assistant',
+                                content: paragraph.trim()
+                            });
+                        }
                     });
                 }
             }
             
+            // 最后的后备方案
+            if (messages.length === 0) {
+                throw new Error('无法从页面中提取对话内容，请使用手动模式');
+            }
+            
             return {
-                title: title.replace(/[<>:"/\\|?*]/g, '-'), // 清理文件名
+                title: title.replace(/[<>:"/\\|?*]/g, '-'),
                 messages: messages,
                 url: url,
                 extractedAt: new Date().toISOString()
@@ -976,18 +1292,23 @@
         function generateMarkdown(chatData) {
             let markdown = `# ${chatData.title}\n\n`;
             markdown += `**备份时间**: ${new Date(chatData.extractedAt).toLocaleString('zh-CN')}\n`;
-            markdown += `**原始链接**: ${chatData.url}\n\n`;
+            markdown += `**来源**: ${chatData.url}\n\n`;
             markdown += `---\n\n`;
             
             chatData.messages.forEach((message, index) => {
-                const roleIcon = message.role === 'user' ? '👤' : '🤖';
-                const roleName = message.role === 'user' ? '用户' : 'ChatGPT';
-                
-                markdown += `## ${roleIcon} ${roleName}\n\n`;
-                markdown += `${message.content}\n\n`;
-                
-                if (index < chatData.messages.length - 1) {
-                    markdown += `---\n\n`;
+                if (message.role === 'mixed') {
+                    // 手动输入的原始内容
+                    markdown += `${message.content}\n\n`;
+                } else {
+                    const roleIcon = message.role === 'user' ? '👤' : '🤖';
+                    const roleName = message.role === 'user' ? '用户' : 'ChatGPT';
+                    
+                    markdown += `## ${roleIcon} ${roleName}\n\n`;
+                    markdown += `${message.content}\n\n`;
+                    
+                    if (index < chatData.messages.length - 1) {
+                        markdown += `---\n\n`;
+                    }
                 }
             });
             

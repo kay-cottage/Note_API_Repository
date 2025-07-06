@@ -1,0 +1,418 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>增量代码编辑器</title>
+    <!-- -------------  样式  ------------- -->
+    <style>
+        * {margin: 0;padding: 0;box-sizing: border-box;}
+        body {font-family: "Consolas", "Monaco", monospace;background: #1a1a1a;color: #e0e0e0;height: 100vh;overflow: hidden;}
+        .container {display: flex;height: 100vh;}
+        /* 侧边栏 */
+        .left-panel {width: 40%;background: #2d2d2d;border-right: 1px solid #444;display: flex;flex-direction: column;transition: width 0.3s ease;}
+        .left-panel.collapsed {width: 0;overflow: hidden;}
+        .panel-header {background: #333;padding: 10px;border-bottom: 1px solid #444;display: flex;justify-content: space-between;align-items: center;}
+        .settings-btn {background: #ff9800;border: none;color: #fff;padding: 5px 10px;cursor: pointer;border-radius: 3px;margin-right: 5px;}
+        .settings-btn:hover {background: #f57c00;}
+        .toggle-btn {background: #555;border: none;color: #e0e0e0;padding: 5px 10px;cursor: pointer;border-radius: 3px;}
+        .toggle-btn:hover {background: #666;}
+        /* 输入区域 */
+        .input-section {flex: 1;display: flex;flex-direction: column;padding: 10px;}
+        .section-title {color: #4caf50;font-size: 14px;margin-bottom: 8px;font-weight: bold;}
+        .code-input, .user-request {background: #1e1e1e;border: 1px solid #444;color: #e0e0e0;font-family: inherit;font-size: 14px;padding: 10px;border-radius: 4px;line-height: 1.4;resize: none;}
+        .code-input {flex: 1;}
+        .user-request {height: 120px;margin-top: 10px;}
+        .execute-btn {background: #4caf50;color: #fff;border: none;padding: 12px 20px;margin-top: 10px;cursor: pointer;border-radius: 4px;font-size: 16px;font-weight: bold;}
+        .execute-btn:hover {background: #45a049;}
+        .execute-btn:disabled {background: #666;cursor: not-allowed;}
+        /* 右侧 */
+        .right-panel {flex: 1;background: #2d2d2d;display: flex;flex-direction: column;}
+        .version-selector {background: #333;padding: 10px;border-bottom: 1px solid #444;display: flex;align-items: center;gap: 10px;}
+        .version-select {background: #555;border: 1px solid #666;color: #e0e0e0;padding: 5px 10px;border-radius: 3px;}
+        .copy-btn {background: #2196f3;color: #fff;border: none;padding: 8px 15px;cursor: pointer;border-radius: 4px;margin-left: auto;}
+        .copy-btn:hover {background: #1976d2;}
+        .output-section {flex: 1;padding: 10px;display: flex;flex-direction: column;}
+        .code-container {display: flex;flex: 1;}
+        .line-numbers {background: #333;padding: 10px 5px;border-right: 1px solid #444;font-size: 12px;color: #888;text-align: right;min-width: 40px;white-space: pre-line;font-family: "Consolas", "Monaco", monospace;line-height: 1.4;}
+        .numbered-code {flex: 1;background: #1e1e1e;border: 1px solid #444;color: #e0e0e0;font-family: "Consolas", "Monaco", monospace;font-size: 14px;padding: 10px;border-radius: 0 4px 4px 0;line-height: 1.4;resize: none;}
+        /* 折叠按钮 */
+        .expand-btn {position: absolute;left: 0;top: 50%;transform: translateY(-50%);background: #555;border: none;color: #e0e0e0;padding: 20px 5px;cursor: pointer;border-radius: 0 3px 3px 0;z-index: 1000;display: none;}
+        /* 新版调试信息面板 */
+        .debug-info {background: linear-gradient(135deg, #2b2b2b, #1e1e1e 60%);padding: 14px;margin-top: 12px;border-radius: 6px;border-left: 4px solid #ff9800;font-size: 12px;max-height: 200px;overflow-y: auto;box-shadow: 0 0 6px rgba(0,0,0,.6);}
+        .debug-title {color: #ffb74d;font-weight: bold;margin-bottom: 6px;}
+        .debug-info pre {white-space: pre-wrap;word-break: break-all;}
+        /* 连接状态 */
+        .status-indicator {display: inline-block;width: 10px;height: 10px;border-radius: 50%;margin-right: 5px;}
+        .status-connected {background: #4caf50;}
+        .status-disconnected {background: #f44336;}
+        /* 模态框 */
+        .modal {display: none;position: fixed;z-index: 1000;left: 0;top: 0;width: 100%;height: 100%;background: rgba(0, 0, 0, 0.5);}
+        .modal-content {background: #2d2d2d;margin: 15% auto;padding: 20px;border: 1px solid #444;border-radius: 8px;width: 500px;color: #e0e0e0;}
+        .modal-header {display: flex;justify-content: space-between;align-items: center;margin-bottom: 20px;}
+        .close {color: #aaa;font-size: 28px;font-weight: bold;cursor: pointer;}
+        .close:hover {color: #fff;}
+        .form-group {margin-bottom: 15px;}
+        .form-group label {display: block;margin-bottom: 5px;color: #4caf50;font-weight: bold;}
+        .form-group input, .form-group select {width: 100%;padding: 8px;background: #1e1e1e;border: 1px solid #444;border-radius: 4px;color: #e0e0e0;font-family: inherit;}
+        .save-btn {background: #4caf50;color: #fff;border: none;padding: 10px 20px;cursor: pointer;border-radius: 4px;font-size: 14px;}
+        .save-btn:hover {background: #45a049;}
+    </style>
+</head>
+<body>
+    <div class="container">
+        <!-- 左侧 -->
+        <div class="left-panel" id="leftPanel">
+            <div class="panel-header">
+                <h3><span id="statusIndicator" class="status-indicator"></span>代码编辑器</h3>
+                <div>
+                    <button class="settings-btn" onclick="openSettings()">设置</button>
+                    <button class="toggle-btn" onclick="togglePanel()">收起</button>
+                </div>
+            </div>
+            <div class="input-section">
+                <div class="section-title">原始代码输入</div>
+                <textarea id="codeInput" class="code-input" placeholder="在此输入您的代码..."></textarea>
+
+                <div class="section-title" style="margin-top: 15px;">修改需求</div>
+                <textarea id="userRequest" class="user-request" placeholder="描述您希望对代码进行的修改..."></textarea>
+
+                <button class="execute-btn" onclick="executeEdit()">执行编辑</button>
+
+                <div id="debugInfo" class="debug-info" style="display: none;">
+                    <div class="debug-title">调试信息</div>
+                    <pre id="debugContent"></pre>
+                </div>
+            </div>
+        </div>
+
+        <!-- 折叠按钮 -->
+        <button id="expandBtn" class="expand-btn" onclick="togglePanel()">展开</button>
+
+        <!-- 右侧 -->
+        <div class="right-panel">
+            <div class="version-selector">
+                <label>版本选择：</label>
+                <select id="versionSelect" class="version-select" onchange="loadVersion()"><option value="0">当前版本</option></select>
+                <button class="copy-btn" onclick="copyToClipboard()">复制代码</button>
+            </div>
+            <div class="output-section">
+                <div class="section-title">编辑结果</div>
+                <div class="code-container">
+                    <div id="lineNumbers" class="line-numbers"></div>
+                    <textarea id="codeOutput" class="numbered-code" placeholder="编辑后的代码将显示在这里..."></textarea>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 设置模态框 -->
+    <div id="settingsModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>API 设置</h3>
+                <span class="close" onclick="closeSettings()">&times;</span>
+            </div>
+            <div class="form-group">
+                <label for="apiKey">OpenAI / 其他 API Key:</label>
+                <input type="password" id="apiKey" placeholder="请输入您的 API Key" />
+            </div>
+            <div class="form-group">
+                <label for="apiModel">模型选择:</label>
+                <select id="apiModel">
+                    <option value="gpt-4o-mini">GPT-4O-Mini</option>
+                    <option value="gpt-4o">GPT-4O</option>
+                    <option value="gpt-4">GPT-4</option>
+                    <option value="gpt-3.5-turbo">GPT-3.5-Turbo</option>
+                    <option value="deepseek-R1">deepseek-R1</option>
+                    <option value="gemini-pro">Google Gemini-Pro</option>
+                </select>
+            </div>
+            <div class="form-group">
+                <label for="apiBase">API Base URL (可选):</label>
+                <input type="text" id="apiBase" value="https://api.openai.com/v1" />
+            </div>
+            <button class="save-btn" onclick="saveSettings()">保存设置</button>
+        </div>
+    </div>
+
+    <!-- 主脚本 -->
+    <script>
+        /********************
+         * 全局状态
+         *******************/
+        let codeHistory = [];
+        let currentVersion = 0;
+        let isExecuting = false;
+        const apiSettings = {
+            apiKey: "",
+            model: "gpt-4o-mini",
+            baseURL: "https://api.openai.com/v1",
+        };
+
+        /********************
+         * 调试工具
+         *******************/
+        function showDebugInfo(info) {
+            const div = document.getElementById("debugInfo");
+            document.getElementById("debugContent").textContent = JSON.stringify(info, null, 2);
+            div.style.display = "block";
+        }
+
+        /********************
+         * UI 初始化
+         *******************/
+        function initializeSettings() {
+            updateConnectionStatus();
+            updateLineNumbers("");
+        }
+
+        function updateConnectionStatus() {
+            const ind = document.getElementById("statusIndicator");
+            if (apiSettings.apiKey) {
+                ind.className = "status-indicator status-connected";
+                ind.title = "已配置 API Key";
+            } else {
+                ind.className = "status-indicator status-disconnected";
+                ind.title = "未配置 API Key";
+            }
+        }
+
+        /********************
+         * 设置面板
+         *******************/
+        function openSettings() {
+            document.getElementById("settingsModal").style.display = "block";
+        }
+        function closeSettings() {
+            document.getElementById("settingsModal").style.display = "none";
+        }
+        function saveSettings() {
+            apiSettings.apiKey = document.getElementById("apiKey").value.trim();
+            apiSettings.model = document.getElementById("apiModel").value;
+            apiSettings.baseURL = document.getElementById("apiBase").value.trim() || "https://api.openai.com/v1";
+            updateConnectionStatus();
+            closeSettings();
+            alert("设置已保存！");
+        }
+
+        /********************
+         * PatchApplier —— 修复版
+         *******************/
+        class PatchApplier {
+            constructor(originalMeta) {
+                this.lines = originalMeta.map((it) => ({ ...it }));
+            }
+
+            apply(operations) {
+                const sorted = [...operations].sort((a, b) => {
+                    const isDelA = a.op.includes("delete");
+                    const isDelB = b.op.includes("delete");
+                    if (isDelA && isDelB) return (b.start ?? b.line) - (a.start ?? a.line);
+                    if (isDelA) return -1;
+                    if (isDelB) return 1;
+                    return (a.start ?? a.line) - (b.start ?? b.line);
+                });
+                for (const op of sorted) {
+                    try {
+                        switch (op.op) {
+                            case "delete_line":
+                                this._deleteBlock(op.line, op.end || op.line);
+                                break;
+                            case "delete_block":
+                                this._deleteBlock(op.start, op.end);
+                                break;
+                            case "replace_line":
+                                this._replaceLine(op.line, op.content);
+                                break;
+                            case "insert_line":
+                                this._insertBlock(op.line, [{ num: null, text: op.content }]);
+                                break;
+                            case "insert_block":
+                                this._insertBlock(op.line, op.content.map((t) => ({ num: null, text: t })));
+                                break;
+                            case "edit_block":
+                                this._editBlock(op.start, op.end, op.content.map((t) => ({ num: null, text: t })));
+                                break;
+                            default:
+                                throw new Error(`未知操作类型: ${op.op}`);
+                        }
+                    } catch (err) {
+                        console.error("应用操作失败", op, err);
+                        throw err;
+                    }
+                }
+                return this.lines;
+            }
+
+            _resolveIndex(origLine) {
+                if (origLine <= 0 || !Number.isInteger(origLine)) throw new Error(`无效行号 ${origLine}`);
+                const idx = this.lines.findIndex((l) => l.num === origLine);
+                if (idx === -1) throw new Error(`原始行 ${origLine} 未找到`);
+                return idx;
+            }
+            _deleteBlock(start, end) {
+                const s = this._resolveIndex(start);
+                const e = this._resolveIndex(end);
+                if (s > e) throw new Error(`删除范围错误: ${start}-${end}`);
+                this.lines.splice(s, e - s + 1);
+            }
+            _replaceLine(line, content) {
+                const idx = this._resolveIndex(line);
+                this.lines[idx].text = content;
+            }
+            _insertBlock(line, newMeta) {
+                const idx = this._resolveIndex(line);
+                this.lines.splice(idx + 1, 0, ...newMeta);
+            }
+            _editBlock(start, end, newMeta) {
+                const s = this._resolveIndex(start);
+                const e = this._resolveIndex(end);
+                if (s > e) throw new Error(`编辑范围错误: ${start}-${end}`);
+                this.lines.splice(s, e - s + 1, ...newMeta);
+            }
+        }
+
+        /********************
+         * 工具函数
+         *******************/
+        function readLinesWithMeta(code) {
+            return code.split("\n").map((t, i) => ({ num: i + 1, text: t }));
+        }
+        function updateLineNumbers(codeText) {
+            const nums = codeText.split("\n").map((_, i) => i + 1).join("\n");
+            document.getElementById("lineNumbers").textContent = nums;
+        }
+        function updateVersionSelector() {
+            const sel = document.getElementById("versionSelect");
+            sel.innerHTML = "";
+            codeHistory.forEach((v, i) => {
+                const opt = document.createElement("option");
+                opt.value = i;
+                opt.textContent = i === codeHistory.length - 1 ? `当前版本 (${i})` : `历史版本 ${i}`;
+                sel.appendChild(opt);
+            });
+        }
+        function loadVersion() {
+            const idx = parseInt(document.getElementById("versionSelect").value, 10);
+            if (idx >= 0 && idx < codeHistory.length) {
+                currentVersion = idx;
+                const item = codeHistory[idx];
+                document.getElementById("codeOutput").value = item.output;
+                updateLineNumbers(item.output);
+            }
+        }
+        function copyToClipboard() {
+            const txt = document.getElementById("codeOutput");
+            txt.select();
+            txt.setSelectionRange(0, txt.value.length);
+            document.execCommand("copy");
+            alert("已复制到剪贴板！");
+        }
+        function togglePanel() {
+            const panel = document.getElementById("leftPanel");
+            const btn = document.getElementById("expandBtn");
+            if (panel.classList.contains("collapsed")) {
+                panel.classList.remove("collapsed");
+                btn.style.display = "none";
+            } else {
+                panel.classList.add("collapsed");
+                btn.style.display = "block";
+            }
+        }
+
+        /********************
+         * GPT 调用与补丁应用
+         *******************/
+        async function generatePatchWithGPT(userRequest, numberedCodeMeta) {
+            if (!apiSettings.apiKey) throw new Error("请在设置中配置 API Key");
+            const codeWithNums = numberedCodeMeta.map((it) => `${it.num}: ${it.text}`).join("\n");
+            const protocol = `你是增量编辑 Patch 应用器助手，返回严格 JSON 对象，无额外文本。\n指令协议同前 (行号必须 >=1)。`;
+            const prompt = `${protocol}\n\n用户需求】：${userRequest}\n\n目标代码：\n${codeWithNums}\n\n示例：{\"ops\":[{\"op\":\"delete_line\",\"line\":2}]}`;
+            const body = {
+                model: apiSettings.model,
+                messages: [{ role: "user", content: prompt }],
+                response_format: { type: "json_object" },
+                temperature: 0,
+            };
+            const resp = await fetch(`${apiSettings.baseURL}/chat/completions`, {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json",
+                    Authorization: `Bearer ${apiSettings.apiKey}`,
+                },
+                body: JSON.stringify(body),
+            });
+            if (!resp.ok) {
+                const err = await resp.json();
+                throw new Error(`API Error: ${resp.status} - ${err.error?.message || "未知错误"}`);
+            }
+            const data = await resp.json();
+            const txt = data.choices[0].message.content.trim();
+            let parsed;
+            try {
+                parsed = JSON.parse(txt);
+            } catch (e) {
+                throw new Error(`解析 GPT 输出失败: ${e.message}\n返回文本: ${txt}`);
+            }
+            if (!Array.isArray(parsed.ops)) throw new Error("GPT 返回格式不正确");
+            const nums = numberedCodeMeta.map((m) => m.num);
+            parsed.ops.forEach((op) => {
+                ["line", "start", "end"].forEach((k) => {
+                    if (op[k] !== undefined && (!Number.isInteger(op[k]) || op[k] <= 0 || !nums.includes(op[k]))) {
+                        throw new Error(`操作中的行号 ${op[k]} 无效`);
+                    }
+                });
+            });
+            return parsed.ops;
+        }
+
+        async function executeEdit() {
+            if (isExecuting) return;
+            const input = document.getElementById("codeInput").value;
+            const req = document.getElementById("userRequest").value;
+            if (!input.trim() || !req.trim()) {
+                alert("请输入代码和修改需求");
+                return;
+            }
+            if (!apiSettings.apiKey) {
+                alert("请先在设置中配置 API Key");
+                return;
+            }
+            const execBtn = document.querySelector(".execute-btn");
+            isExecuting = true;
+            execBtn.disabled = true;
+            execBtn.textContent = "正在调用 GPT...";
+            try {
+                const meta = readLinesWithMeta(input);
+                const ops = await generatePatchWithGPT(req, meta);
+                showDebugInfo({ originalMeta: meta, operations: ops });
+                execBtn.textContent = "正在应用补丁...";
+                const applier = new PatchApplier(meta);
+                const patchedMeta = applier.apply(ops);
+                const output = patchedMeta.map((it) => it.text).join("\n");
+                codeHistory.push({ input, request: req, output, operations: ops, timestamp: new Date().toLocaleString() });
+                updateVersionSelector();
+                document.getElementById("codeOutput").value = output;
+                updateLineNumbers(output);
+                document.getElementById("versionSelect").value = codeHistory.length - 1;
+                currentVersion = codeHistory.length - 1;
+                execBtn.textContent = "编辑成功！";
+                setTimeout(() => (execBtn.textContent = "执行编辑"), 2000);
+            } catch (err) {
+                console.error("编辑失败", err);
+                showDebugInfo({ error: err.message, stack: err.stack });
+                alert("编辑失败: " + err.message);
+            } finally {
+                isExecuting = false;
+                execBtn.disabled = false;
+            }
+        }
+
+        /********************
+         * 启动
+         *******************/
+        initializeSettings();
+    </script>
+</body>
+</html>

@@ -817,7 +817,8 @@
                 
                 if (existingFile) {
                     // 文件存在，追加内容
-                    const existingContent = atob(existingFile.content);
+                    const existingContent = decodeURIComponent(escape(atob(existingFile.content)));
+                    //const existingContent = atob(existingFile.content);
                     newContent = existingContent + messageContent;
                     sha = existingFile.sha;
                 } else {

@@ -200,7 +200,7 @@
        */
       async function getFileContent(user, repo, path, token) {
         const res = await ghRequest('GET', `/repos/${user}/${repo}/contents/${encodeURIComponent(path)}`, token);
-        const rawContent = atob(res.content.replace(/\n/g, ''));
+        const rawContent = decodeURIComponent(escape(atob(res.content.replace(/\n/g, ''))));
         return { content: rawContent, sha: res.sha };
       }
 

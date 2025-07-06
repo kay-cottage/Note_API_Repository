@@ -5,65 +5,48 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>增量代码编辑器</title>
   <style>
-    /* ======= 通用 ======= */
-    *{margin:0;padding:0;box-sizing:border-box}
-    body{font-family:"Consolas","Monaco",monospace;background:#1a1a1a;color:#e0e0e0;height:100vh;overflow:hidden}
-    .container{display:flex;height:100vh}
-    .left-panel{width:40%;background:#2d2d2d;border-right:1px solid #444;display:flex;flex-direction:column;transition:width .3s}
-    .left-panel.collapsed{width:0;overflow:hidden}
-    .panel-header{background:#333;padding:10px;border-bottom:1px solid #444;display:flex;justify-content:space-between;align-items:center}
-    .settings-btn,.toggle-btn{padding:5px 10px;border:none;border-radius:3px;cursor:pointer}
-    .settings-btn{background:#ff9800;color:#fff;margin-right:6px}
-    .settings-btn:hover{background:#f57c00}
-    .toggle-btn{background:#555;color:#e0e0e0}
-    .toggle-btn:hover{background:#666}
-    .input-section{flex:1;display:flex;flex-direction:column;padding:10px}
-    .section-title{color:#4caf50;font-weight:bold;font-size:14px;margin-bottom:6px}
-    .code-input,.user-request{background:#1e1e1e;border:1px solid #444;border-radius:4px;color:#e0e0e0;font-size:14px;line-height:1.4;font-family:inherit;padding:10px;resize:none}
-    .code-input{flex:1}
-    .user-request{height:120px;margin-top:10px}
-    .execute-btn{margin-top:10px;font-weight:bold;background:#4caf50;color:#fff;border:none;border-radius:4px;font-size:16px;padding:12px 20px;cursor:pointer}
-    .execute-btn:hover{background:#45a049}
-    .execute-btn:disabled{background:#666;cursor:not-allowed}
-
-    /* ======= 调试信息 ======= */
-    .debug-info{display:none;position:relative;background:#1f262d;border:1px solid #4caf50;border-left:4px solid #4caf50;border-radius:8px;padding:14px;margin-top:14px;color:#c8e6c9;max-height:260px;overflow-y:auto;font-size:12px;box-shadow:0 0 10px rgba(0,0,0,.6)}
-    .debug-title{font-weight:bold;margin-bottom:8px;display:flex;justify-content:space-between;align-items:center}
-    .debug-close{cursor:pointer;font-size:14px;color:#c8e6c9;opacity:.7}
-    .debug-close:hover{opacity:1}
-    .debug-info pre{white-space:pre-wrap;word-break:break-all;color:#e8f5e9}
-
-    /* ======= 状态灯 ======= */
-    .status-indicator{display:inline-block;width:10px;height:10px;border-radius:50%;margin-right:6px}
-    .status-connected{background:#4caf50}
-    .status-disconnected{background:#f44336}
-
-    /* ======= 右侧 ======= */
-    .right-panel{flex:1;background:#2d2d2d;display:flex;flex-direction:column}
-    .version-selector{background:#333;padding:10px;border-bottom:1px solid #444;display:flex;align-items:center;gap:10px}
-    .version-select{background:#555;border:1px solid #666;color:#e0e0e0;border-radius:3px;padding:5px 10px}
-    .copy-btn{margin-left:auto;background:#2196f3;color:#fff;border:none;border-radius:4px;padding:8px 15px;cursor:pointer}
-    .copy-btn:hover{background:#1976d2}
-    .output-section{flex:1;padding:10px;display:flex;flex-direction:column}
-    .code-container{flex:1;display:flex}
-    .line-numbers{background:#333;border-right:1px solid #444;color:#888;min-width:46px;text-align:right;padding:10px 6px;font-size:12px;line-height:1.4;white-space:pre-line}
-    .numbered-code{flex:1;background:#1e1e1e;border:1px solid #444;border-left:none;border-radius:0 4px 4px 0;color:#e0e0e0;font-size:14px;font-family:inherit;padding:10px;resize:none;line-height:1.4}
-
-    /* ======= 折叠按钮 ======= */
-    .expand-btn{position:absolute;left:0;top:50%;transform:translateY(-50%);background:#555;color:#e0e0e0;border:none;border-radius:0 3px 3px 0;padding:20px 6px;cursor:pointer;display:none;z-index:1000}
-    .expand-btn:hover{background:#666}
-
-    /* ======= 模态框 ======= */
-    .modal{display:none;position:fixed;inset:0;z-index:1000;background:rgba(0,0,0,.5)}
-    .modal-content{background:#2d2d2d;color:#e0e0e0;border:1px solid #444;border-radius:8px;padding:20px;width:500px;margin:10% auto}
-    .modal-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:20px}
-    .close{cursor:pointer;font-size:24px;color:#aaa}
-    .close:hover{color:#fff}
-    .form-group{margin-bottom:15px}
-    .form-group label{display:block;margin-bottom:6px;color:#4caf50;font-weight:bold}
-    .form-group input,.form-group select{width:100%;padding:8px;background:#1e1e1e;border:1px solid #444;border-radius:4px;color:#e0e0e0;font-family:inherit}
-    .save-btn{background:#4caf50;border:none;color:#fff;padding:10px 20px;border-radius:4px;cursor:pointer}
-    .save-btn:hover{background:#45a049}
+        *{margin:0;padding:0;box-sizing:border-box}
+        body{font-family:'Consolas','Monaco',monospace;background:#1a1a1a;color:#e0e0e0;height:100vh;overflow:hidden}
+        .container{display:flex;height:100vh}
+        .left-panel{width:40%;background:#2d2d2d;border-right:1px solid #444;display:flex;flex-direction:column;transition:width .3s ease}
+        .left-panel.collapsed{width:0;overflow:hidden}
+        .panel-header{background:#333;padding:10px;border-bottom:1px solid #444;display:flex;justify-content:space-between;align-items:center}
+        .settings-btn{background:#ff9800;border:none;color:#fff;padding:5px 10px;cursor:pointer;border-radius:3px;margin-right:5px}
+        .settings-btn:hover{background:#f57c00}
+        .modal{display:none;position:fixed;z-index:1000;left:0;top:0;width:100%;height:100%;background:rgba(0,0,0,.5)}
+        .modal-content{background:#2d2d2d;margin:15% auto;padding:20px;border:1px solid #444;border-radius:8px;width:500px;color:#e0e0e0}
+        .modal-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:20px}
+        .close{color:#aaa;font-size:28px;font-weight:bold;cursor:pointer}
+        .close:hover{color:#fff}
+        .form-group{margin-bottom:15px}
+        .form-group label{display:block;margin-bottom:5px;color:#4caf50;font-weight:bold}
+        .form-group input,.form-group select{width:100%;padding:8px;background:#1e1e1e;border:1px solid #444;border-radius:4px;color:#e0e0e0;font-family:inherit}
+        .save-btn{background:#4caf50;color:#fff;border:none;padding:10px 20px;cursor:pointer;border-radius:4px;font-size:14px}
+        .save-btn:hover{background:#45a049}
+        .status-indicator{display:inline-block;width:10px;height:10px;border-radius:50%;margin-right:5px}
+        .status-connected{background:#4caf50}
+        .status-disconnected{background:#f44336}
+        .toggle-btn{background:#555;border:none;color:#e0e0e0;padding:5px 10px;cursor:pointer;border-radius:3px}
+        .toggle-btn:hover{background:#666}
+        .input-section{flex:1;display:flex;flex-direction:column;padding:10px}
+        .section-title{color:#4caf50;font-size:14px;margin-bottom:8px;font-weight:bold}
+        .code-input{flex:1;background:#1e1e1e;border:1px solid #444;color:#e0e0e0;font-family:'Consolas','Monaco',monospace;font-size:14px;padding:10px;resize:none;border-radius:4px;line-height:1.4}
+        .user-request{height:120px;margin-top:10px;background:#1e1e1e;border:1px solid #444;color:#e0e0e0;padding:10px;border-radius:4px;font-family:inherit;resize:none}
+        .execute-btn{background:#4caf50;color:#fff;border:none;padding:12px 20px;margin-top:10px;cursor:pointer;border-radius:4px;font-size:16px;font-weight:bold}
+        .execute-btn:hover{background:#45a049}
+        .execute-btn:disabled{background:#666;cursor:not-allowed}
+        .right-panel{flex:1;background:#2d2d2d;display:flex;flex-direction:column}
+        .version-selector{background:#333;padding:10px;border-bottom:1px solid #444;display:flex;align-items:center;gap:10px}
+        .version-select{background:#555;border:1px solid #666;color:#e0e0e0;padding:5px 10px;border-radius:3px}
+        .copy-btn{background:#2196f3;color:#fff;border:none;padding:8px 15px;cursor:pointer;border-radius:4px;margin-left:auto}
+        .copy-btn:hover{background:#1976d2}
+        .output-section{flex:1;padding:10px;display:flex;flex-direction:column}
+        .code-container{display:flex;flex:1}
+        .line-numbers{background:#333;padding:10px 5px;border-right:1px solid #444;font-size:12px;color:#888;text-align:right;min-width:40px;white-space:pre-line;font-family:'Consolas','Monaco',monospace;line-height:1.4}
+        .numbered-code{flex:1;background:#1e1e1e;border:1px solid #444;color:#e0e0e0;font-family:'Consolas','Monaco',monospace;font-size:14px;padding:10px;resize:none;border-radius:0 4px 4px 0;line-height:1.4}
+        .expand-btn{position:absolute;left:0;top:50%;transform:translateY(-50%);background:#555;border:none;color:#e0e0e0;padding:20px 5px;cursor:pointer;border-radius:0 3px 3px 0;z-index:1000;display:none}
+        .debug-info{background:#333;padding:10px;margin-top:10px;border-radius:4px;font-size:12px;max-height:180px;overflow-y:auto}
+        .debug-title{color:#ff9800;font-weight:bold;margin-bottom:5px}
   </style>
 </head>
 <body>

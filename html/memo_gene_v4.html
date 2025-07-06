@@ -191,20 +191,27 @@
        * 功能：获取文件内容 (base64 -> utf8)
        * ============================== */
       /**
-       * 获取GitHub仓库中指定文件的内容并解析时间戳格式的消息
+       * 获取GitHub仓库中指定文件的内容
        * @param {string} user - GitHub用户名
        * @param {string} repo - GitHub仓库名
        * @param {string} path - 文件路径
        * @param {string} token - GitHub个人访问令牌
-       * @returns {Promise<object>} 返回对象包含content（解析后的结构化内容）和sha（文件哈希值）
+       * @returns {Promise<object>} 返回对象包含content（字符串内容）和sha（文件哈希值）
        */
       async function getFileContent(user, repo, path, token) {
         const res = await ghRequest('GET', `/repos/${user}/${repo}/contents/${encodeURIComponent(path)}`, token);
         const rawContent = atob(res.content.replace(/\n/g, ''));
-        
-        // 解析时间戳格式的消息
+        return { content: rawContent, sha: res.sha };
+      }
+
+      /**
+       * 解析时间戳格式的笔记内容
+       * @param {string} content - 原始文件内容
+       * @returns {object} 返回结构化的内容对象
+       */
+      function parseNoteContent(content) {
         const messages = [];
-        const lines = rawContent.split('\n');
+        const lines = content.split('\n');
         let currentMessage = null;
         
         for (let i = 0; i < lines.length; i++) {
@@ -239,13 +246,11 @@
         }
         
         // 构建结构化内容
-        const structuredContent = {
-          originalContent: rawContent,
+        return {
+          originalContent: content,
           messages: messages,
           totalMessages: messages.length
         };
-        
-        return { content: structuredContent, sha: res.sha };
       }
 
       /* ================================
@@ -270,9 +275,11 @@
           committer: {
             name: 'AI Note Bot',
             email: 'ai-note-bot@example.com'
-          },
-          sha
+          }
         };
+        if (sha) {
+          body.sha = sha;
+        }
         return ghRequest('PUT', `/repos/${user}/${repo}/contents/${encodeURIComponent(path)}`, token, body);
       }
 
@@ -324,6 +331,7 @@
         
         return finalContent;
       }
+
       /**
        * 调用OpenAI Chat API进行笔记整理
        * @param {string} apiKey - OpenAI API密钥
@@ -406,7 +414,8 @@
           for (const file of toProcess) {
             log(`处理文件：${file.path}`);
             try {
-              const { content: structuredContent } = await getFileContent(ghUser, ghRepo, file.path, ghToken);
+              const { content: rawContent } = await getFileContent(ghUser, ghRepo, file.path, ghToken);
+              const structuredContent = parseNoteContent(rawContent);
 
               // 调用 OpenAI 整理笔记，传入结构化内容（不包含时间戳）
               const aiContent = await openaiChat(openaiKey, model, structuredContent);

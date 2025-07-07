@@ -5,391 +5,339 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>增量代码编辑器</title>
   <style>
-    *{margin:0;padding:0;box-sizing:border-box}
-    body{font-family:'Consolas','Monaco',monospace;background:#1a1a1a;color:#e0e0e0;height:100vh;overflow:hidden}
-    .container{display:flex;height:100vh}
-    .left-panel{width:40%;background:#2d2d2d;border-right:1px solid #444;display:flex;flex-direction:column;transition:width .3s ease}
-    .left-panel.collapsed{width:0;overflow:hidden}
-    .panel-header{background:#333;padding:10px;border-bottom:1px solid #444;display:flex;justify-content:space-between;align-items:center}
-    .settings-btn{background:#ff9800;border:none;color:#fff;padding:5px 10px;cursor:pointer;border-radius:3px;margin-right:5px}
-    .settings-btn:hover{background:#f57c00}
-    .modal{display:none;position:fixed;z-index:1000;left:0;top:0;width:100%;height:100%;background:rgba(0,0,0,.5)}
-    .modal-content{background:#2d2d2d;margin:15% auto;padding:20px;border:1px solid #444;border-radius:8px;width:500px;color:#e0e0e0}
-    .modal-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:20px}
-    .close{color:#aaa;font-size:28px;font-weight:bold;cursor:pointer}
-    .close:hover{color:#fff}
-    .form-group{margin-bottom:15px}
-    .form-group label{display:block;margin-bottom:5px;color:#4caf50;font-weight:bold}
-    .form-group input,.form-group select{width:100%;padding:8px;background:#1e1e1e;border:1px solid #444;border-radius:4px;color:#e0e0e0;font-family:inherit}
-    .save-btn{background:#4caf50;color:#fff;border:none;padding:10px 20px;cursor:pointer;border-radius:4px;font-size:14px}
-    .save-btn:hover{background:#45a049}
-    .status-indicator{display:inline-block;width:10px;height:10px;border-radius:50%;margin-right:5px}
-    .status-connected{background:#4caf50}
-    .status-disconnected{background:#f44336}
-    .toggle-btn{background:#555;border:none;color:#e0e0e0;padding:5px 10px;cursor:pointer;border-radius:3px}
-    .toggle-btn:hover{background:#666}
-    .input-section{flex:1;display:flex;flex-direction:column;padding:10px}
-    .section-title{color:#4caf50;font-size:14px;margin-bottom:8px;font-weight:bold}
-    .code-input{flex:1;background:#1e1e1e;border:1px solid #444;color:#e0e0e0;font-family:'Consolas','Monaco',monospace;font-size:14px;padding:10px;resize:none;border-radius:4px;line-height:1.4}
-    .user-request{height:120px;margin-top:10px;background:#1e1e1e;border:1px solid #444;color:#e0e0e0;padding:10px;border-radius:4px;font-family:inherit;resize:none}
-    .execute-btn{background:#4caf50;color:#fff;border:none;padding:12px 20px;margin-top:10px;cursor:pointer;border-radius:4px;font-size:16px;font-weight:bold}
-    .execute-btn:hover{background:#45a049}
-    .execute-btn:disabled{background:#666;cursor:not-allowed}
-    .right-panel{flex:1;background:#2d2d2d;display:flex;flex-direction:column}
-    .version-selector{background:#333;padding:10px;border-bottom:1px solid #444;display:flex;align-items:center;gap:10px}
-    .version-select{background:#555;border:1px solid #666;color:#e0e0e0;padding:5px 10px;border-radius:3px}
-    .copy-btn{background:#2196f3;color:#fff;border:none;padding:8px 15px;cursor:pointer;border-radius:4px;margin-left:auto}
-    .copy-btn:hover{background:#1976d2}
-    .output-section{flex:1;padding:10px;display:flex;flex-direction:column}
-    .code-container{display:flex;flex:1}
-    .line-numbers{background:#333;padding:10px 5px;border-right:1px solid #444;font-size:12px;color:#888;text-align:right;min-width:40px;white-space:pre-line;font-family:'Consolas','Monaco',monospace;line-height:1.4}
-    .numbered-code{flex:1;background:#1e1e1e;border:1px solid #444;color:#e0e0e0;font-family:'Consolas','Monaco',monospace;font-size:14px;padding:10px;resize:none;border-radius:0 4px 4px 0;line-height:1.4}
-    .expand-btn{position:absolute;left:0;top:50%;transform:translateY(-50%);background:#555;border:none;color:#e0e0e0;padding:20px 5px;cursor:pointer;border-radius:0 3px 3px 0;z-index:1000;display:none}
-    .debug-info{background:#333;padding:10px;margin-top:10px;border-radius:4px;font-size:12px;max-height:180px;overflow-y:auto}
-    .debug-title{color:#ff9800;font-weight:bold;margin-bottom:5px}
+        *{margin:0;padding:0;box-sizing:border-box}
+        body{font-family:'Consolas','Monaco',monospace;background:#1a1a1a;color:#e0e0e0;height:100vh;overflow:hidden}
+        .container{display:flex;height:100vh}
+        .left-panel{width:40%;background:#2d2d2d;border-right:1px solid #444;display:flex;flex-direction:column;transition:width .3s ease}
+        .left-panel.collapsed{width:0;overflow:hidden}
+        .panel-header{background:#333;padding:10px;border-bottom:1px solid #444;display:flex;justify-content:space-between;align-items:center}
+        .settings-btn{background:#ff9800;border:none;color:#fff;padding:5px 10px;cursor:pointer;border-radius:3px;margin-right:5px}
+        .settings-btn:hover{background:#f57c00}
+        .modal{display:none;position:fixed;z-index:1000;left:0;top:0;width:100%;height:100%;background:rgba(0,0,0,.5)}
+        .modal-content{background:#2d2d2d;margin:15% auto;padding:20px;border:1px solid #444;border-radius:8px;width:500px;color:#e0e0e0}
+        .modal-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:20px}
+        .close{color:#aaa;font-size:28px;font-weight:bold;cursor:pointer}
+        .close:hover{color:#fff}
+        .form-group{margin-bottom:15px}
+        .form-group label{display:block;margin-bottom:5px;color:#4caf50;font-weight:bold}
+        .form-group input,.form-group select{width:100%;padding:8px;background:#1e1e1e;border:1px solid #444;border-radius:4px;color:#e0e0e0;font-family:inherit}
+        .save-btn{background:#4caf50;color:#fff;border:none;padding:10px 20px;cursor:pointer;border-radius:4px;font-size:14px}
+        .save-btn:hover{background:#45a049}
+        .status-indicator{display:inline-block;width:10px;height:10px;border-radius:50%;margin-right:5px}
+        .status-connected{background:#4caf50}
+        .status-disconnected{background:#f44336}
+        .toggle-btn{background:#555;border:none;color:#e0e0e0;padding:5px 10px;cursor:pointer;border-radius:3px}
+        .toggle-btn:hover{background:#666}
+        .input-section{flex:1;display:flex;flex-direction:column;padding:10px}
+        .section-title{color:#4caf50;font-size:14px;margin-bottom:8px;font-weight:bold}
+        .code-input{flex:1;background:#1e1e1e;border:1px solid #444;color:#e0e0e0;font-family:'Consolas','Monaco',monospace;font-size:14px;padding:10px;resize:none;border-radius:4px;line-height:1.4}
+        .user-request{height:120px;margin-top:10px;background:#1e1e1e;border:1px solid #444;color:#e0e0e0;padding:10px;border-radius:4px;font-family:inherit;resize:none}
+        .execute-btn{background:#4caf50;color:#fff;border:none;padding:12px 20px;margin-top:10px;cursor:pointer;border-radius:4px;font-size:16px;font-weight:bold}
+        .execute-btn:hover{background:#45a049}
+        .execute-btn:disabled{background:#666;cursor:not-allowed}
+        .right-panel{flex:1;background:#2d2d2d;display:flex;flex-direction:column}
+        .version-selector{background:#333;padding:10px;border-bottom:1px solid #444;display:flex;align-items:center;gap:10px}
+        .version-select{background:#555;border:1px solid #666;color:#e0e0e0;padding:5px 10px;border-radius:3px}
+        .copy-btn{background:#2196f3;color:#fff;border:none;padding:8px 15px;cursor:pointer;border-radius:4px;margin-left:auto}
+        .copy-btn:hover{background:#1976d2}
+        .output-section{flex:1;padding:10px;display:flex;flex-direction:column}
+        .code-container{display:flex;flex:1}
+        .line-numbers{background:#333;padding:10px 5px;border-right:1px solid #444;font-size:12px;color:#888;text-align:right;min-width:40px;white-space:pre-line;font-family:'Consolas','Monaco',monospace;line-height:1.4}
+        .numbered-code{flex:1;background:#1e1e1e;border:1px solid #444;color:#e0e0e0;font-family:'Consolas','Monaco',monospace;font-size:14px;padding:10px;resize:none;border-radius:0 4px 4px 0;line-height:1.4}
+        .expand-btn{position:absolute;left:0;top:50%;transform:translateY(-50%);background:#555;border:none;color:#e0e0e0;padding:20px 5px;cursor:pointer;border-radius:0 3px 3px 0;z-index:1000;display:none}
+        .debug-info{background:#333;padding:10px;margin-top:10px;border-radius:4px;font-size:12px;max-height:180px;overflow-y:auto}
+        .debug-title{color:#ff9800;font-weight:bold;margin-bottom:5px}
   </style>
 </head>
 <body>
-  <div class="container">
+<div class="container">
     <!-- 左侧 -->
     <div id="leftPanel" class="left-panel">
-      <div class="panel-header">
-        <h3><span id="statusIndicator" class="status-indicator"></span>代码编辑器</h3>
-        <div>
-          <button class="settings-btn" onclick="openSettings()">设置</button>
-          <button class="toggle-btn" onclick="togglePanel()">收起</button>
+        <div class="panel-header">
+            <h3><span id="statusIndicator" class="status-indicator"></span>代码编辑器</h3>
+            <div>
+                <button class="settings-btn" onclick="openSettings()">设置</button>
+                <button class="toggle-btn" onclick="togglePanel()">收起</button>
+            </div>
         </div>
-      </div>
-      <div class="input-section">
-        <div class="section-title">原始代码输入</div>
-        <textarea id="codeInput" class="code-input" placeholder="在此输入您的代码..."></textarea>
-        <div class="section-title" style="margin-top:15px">修改需求</div>
-        <textarea id="userRequest" class="user-request" placeholder="描述您希望对代码进行的修改..."></textarea>
-        <button class="execute-btn" onclick="executeEdit()">执行编辑</button>
-        <div id="debugInfo" class="debug-info" style="display:none">
-          <div class="debug-title">调试信息</div>
-          <pre id="debugContent"></pre>
+        <div class="input-section">
+            <div class="section-title">原始代码输入</div>
+            <textarea id="codeInput" class="code-input" placeholder="在此输入您的代码..."></textarea>
+            <div class="section-title" style="margin-top:15px">修改需求</div>
+            <textarea id="userRequest" class="user-request" placeholder="描述您希望对代码进行的修改..."></textarea>
+            <button class="execute-btn" onclick="executeEdit()">执行编辑</button>
+            <div id="debugInfo" class="debug-info" style="display:none">
+                <div class="debug-title">调试信息</div>
+                <pre id="debugContent"></pre>
+            </div>
         </div>
-      </div>
     </div>
     <button id="expandBtn" class="expand-btn" onclick="togglePanel()">展开</button>
     <!-- 右侧 -->
     <div class="right-panel">
-      <div class="version-selector">
-        <label>版本选择：</label>
-        <select id="versionSelect" class="version-select" onchange="loadVersion()">
-          <option value="0">当前版本</option>
-        </select>
-        <button class="copy-btn" onclick="copyToClipboard()">复制代码</button>
-      </div>
-      <div class="output-section">
-        <div class="section-title">编辑结果</div>
-        <div class="code-container">
-          <div id="lineNumbers" class="line-numbers"></div>
-          <textarea id="codeOutput" class="numbered-code" placeholder="编辑后的代码将显示在这里..."></textarea>
+        <div class="version-selector">
+            <label>版本选择：</label>
+            <select id="versionSelect" class="version-select" onchange="loadVersion()"><option value="0">当前版本</option></select>
+            <button class="copy-btn" onclick="copyToClipboard()">复制代码</button>
         </div>
-      </div>
+        <div class="output-section">
+            <div class="section-title">编辑结果</div>
+            <div class="code-container">
+                <div id="lineNumbers" class="line-numbers"></div>
+                <textarea id="codeOutput" class="numbered-code" placeholder="编辑后的代码将显示在这里..."></textarea>
+            </div>
+        </div>
     </div>
-  </div>
-
-  <!-- 设置模态框 -->
-  <div id="settingsModal" class="modal">
-    <div class="modal-content">
-      <div class="modal-header">
-        <h3>API 设置</h3>
-        <span class="close" onclick="closeSettings()">&times;</span>
-      </div>
-      <div class="form-group">
-        <label for="apiKey">API Key:</label>
-        <input id="apiKey" type="password" placeholder="请输入您的 API Key" />
-      </div>
-      <div class="form-group">
-        <label for="apiModel">模型选择:</label>
-        <select id="apiModel">
-          <option value="gpt-4o-mini">GPT-4O-Mini</option>
-          <option value="gpt-4o">GPT-4O</option>
-          <option value="gpt-4">GPT-4</option>
-          <option value="gpt-3.5-turbo">GPT-3.5-Turbo</option>
-          <option value="deepseek-r1">DeepSeek-R1</option>
-          <option value="gemini-pro">Google Gemini-Pro</option>
-        </select>
-      </div>
-      <div class="form-group">
-        <label for="apiBase">API Base URL:</label>
-        <input id="apiBase" type="text" value="https://api.openai.com/v1" />
-      </div>
-      <button class="save-btn" onclick="saveSettings()">保存设置</button>
+</div>
+<!-- 设置模态框 -->
+<div id="settingsModal" class="modal">
+  <div class="modal-content">
+    <div class="modal-header"><h3>API 设置</h3><span class="close" onclick="closeSettings()">&times;</span></div>
+    <div class="form-group"><label for="apiKey">API Key:</label><input id="apiKey" type="password" placeholder="请输入您的 API Key" /></div>
+    <div class="form-group"><label for="apiModel">模型选择:</label>
+      <select id="apiModel">
+        <option value="gpt-4o-mini">GPT-4O-Mini</option>
+        <option value="gpt-4o">GPT-4O</option>
+        <option value="gpt-4">GPT-4</option>
+        <option value="gpt-3.5-turbo">GPT-3.5-Turbo</option>
+        <option value="deepseek-r1">DeepSeek-R1</option>
+        <option value="gemini-pro">Google Gemini-Pro</option>
+      </select>
     </div>
+    <div class="form-group"><label for="apiBase">API Base URL:</label><input id="apiBase" type="text" value="https://api.openai.com/v1" /></div>
+    <button class="save-btn" onclick="saveSettings()">保存设置</button>
   </div>
+</div>
+<!-- 主脚本 -->
+<script>
+/**************** 全局状态 ****************/ 
+let codeHistory=[];let currentVersion=0;let isExecuting=false;
+const apiSettings={apiKey:'',model:'gpt-4o-mini',baseURL:'https://api.openai.com/v1'};
+/**************** 调试 ****************/ 
+function showDebugInfo(info){const div=document.getElementById('debugInfo');document.getElementById('debugContent').textContent=JSON.stringify(info,null,2);div.style.display='block'}
+/**************** 初始化 ****************/ 
+function initialize(){updateConnectionStatus();updateLineNumbers('')}
+function updateConnectionStatus(){const s=document.getElementById('statusIndicator');if(apiSettings.apiKey){s.className='status-indicator status-connected';s.title='已配置 API Key'}else{s.className='status-indicator status-disconnected';s.title='未配置 API Key'}}
+/**************** 设置框 ****************/ 
+function openSettings(){document.getElementById('settingsModal').style.display='block'}
+function closeSettings(){document.getElementById('settingsModal').style.display='none'}
+function saveSettings(){apiSettings.apiKey=document.getElementById('apiKey').value.trim();apiSettings.model=document.getElementById('apiModel').value;apiSettings.baseURL=document.getElementById('apiBase').value.trim()||'https://api.openai.com/v1';updateConnectionStatus();closeSettings();alert('设置已保存！')}
+/**************** PatchApplier（核心编辑模块：保持稳定，仅作插入兼容处理） ****************/ 
+class PatchApplier{
+  constructor(originalMeta){this.lines=originalMeta.map(l=>({...l}))}
+  apply(operations){for(const op of operations){try{switch(op.op){
+      case 'delete_line':this._deleteBlock(op.line,op.end||op.line);break;
+      case 'delete_block':this._deleteBlock(op.start,op.end);break;
+      case 'replace_line':this._replaceLine(op.line,op.content);break;
+      case 'insert_line':this._insertBlock(op.line,[{num:null,text:op.content}]);break;
+      case 'insert_block':this._insertBlock(op.line,op.content.map(t=>({num:null,text:t})));break;
+      case 'edit_block':this._editBlock(op.start,op.end,op.content.map(t=>({num:null,text:t})));break;
+      default:throw new Error('未知操作 '+op.op);
+    }}catch(e){throw new Error(`操作失败 ${JSON.stringify(op)} -> ${e.message}`)}}return this.lines}
+  _resolveIndex(origLine){const idx=this.lines.findIndex(l=>l.num===origLine);if(idx===-1)throw new Error(`原始行 ${origLine} 未找到`);return idx}
+  _deleteBlock(start,end){const s=this._resolveIndex(start);const e=this._resolveIndex(end);if(s>e)throw new Error('删除范围错误');this.lines.splice(s,e-s+1)}
+  _replaceLine(line,content){const idx=this._resolveIndex(line);this.lines[idx].text=content}
+  _insertBlock(line,newMeta){let idx=this.lines.findIndex(l=>l.num===line);
+    if(idx===-1){idx=this.lines.findIndex(l=>l.num>line);if(idx===-1)idx=this.lines.length-1;else idx=idx-1;}
+    this.lines.splice(idx+1,0,...newMeta)}
+  _editBlock(start,end,newMeta){const s=this._resolveIndex(start);const e=this._resolveIndex(end);if(s>e)throw new Error('编辑范围错误');this.lines.splice(s,e-s+1,...newMeta)}
+}
+/**************** 工具函数 ****************/ 
+const readLinesWithMeta=code=>code.split('\n').map((t,i)=>({num:i+1,text:t}));
+function updateLineNumbers(text){document.getElementById('lineNumbers').textContent=text.split('\n').map((_,i)=>i+1).join('\n')}
+function updateVersionSelector(){const sel=document.getElementById('versionSelect');sel.innerHTML='';codeHistory.forEach((_,i)=>{const opt=document.createElement('option');opt.value=i;opt.textContent=i===codeHistory.length-1?`当前版本 (${i})`:`历史版本 ${i}`;sel.appendChild(opt)})}
+function loadVersion(){const idx=parseInt(document.getElementById('versionSelect').value,10);if(idx>=0&&idx<codeHistory.length){currentVersion=idx;const item=codeHistory[idx];document.getElementById('codeOutput').value=item.output;updateLineNumbers(item.output)}}
+function copyToClipboard(){const txt=document.getElementById('codeOutput');txt.select();document.execCommand('copy');alert('已复制到剪贴板！')}
+function togglePanel(){const panel=document.getElementById('leftPanel');const btn=document.getElementById('expandBtn');if(panel.classList.contains('collapsed')){panel.classList.remove('collapsed');btn.style.display='none'}else{panel.classList.add('collapsed');btn.style.display='block'}}
 
-  <!-- 主脚本 -->
-  <script>
-    /**************** 全局状态 ****************/
-    let codeHistory = [];
-    let currentVersion = 0;
-    let isExecuting = false;
-    const apiSettings = {
-      apiKey: '',
-      model: 'gpt-4o-mini',
-      baseURL: 'https://api.openai.com/v1'
-    };
-
-    /**************** 调试 ****************/
-    function showDebugInfo(info) {
-      const div = document.getElementById('debugInfo');
-      document.getElementById('debugContent').textContent = JSON.stringify(info, null, 2);
-      div.style.display = 'block';
-    }
-
-    /**************** 初始化 ****************/
-    function initialize() {
-      updateConnectionStatus();
-      updateLineNumbers('');
-      updateVersionSelector();
-    }
-
-    function updateConnectionStatus() {
-      const s = document.getElementById('statusIndicator');
-      if (apiSettings.apiKey) {
-        s.className = 'status-indicator status-connected';
-        s.title = '已配置 API Key';
-      } else {
-        s.className = 'status-indicator status-disconnected';
-        s.title = '未配置 API Key';
-      }
-    }
-
-    /**************** 设置框 ****************/
-    function openSettings() {
-      document.getElementById('settingsModal').style.display = 'block';
-    }
-    function closeSettings() {
-      document.getElementById('settingsModal').style.display = 'none';
-    }
-    function saveSettings() {
-      apiSettings.apiKey = document.getElementById('apiKey').value.trim();
-      apiSettings.model = document.getElementById('apiModel').value;
-      apiSettings.baseURL = document.getElementById('apiBase').value.trim() || 'https://api.openai.com/v1';
-      updateConnectionStatus();
-      closeSettings();
-      alert('设置已保存！');
-    }
-    // 点击遮罩层关闭模态框
-    window.onclick = function(event) {
-      const modal = document.getElementById('settingsModal');
-      if (event.target === modal) {
-        closeSettings();
-      }
-    }
-
-    /**************** PatchApplier（核心编辑模块） ****************/
-    class PatchApplier {
-      constructor(originalMeta) {
-        this.lines = originalMeta.map(l => ({ ...l }));
-      }
-      apply(operations) {
-        for (const op of operations) {
-          try {
-            switch (op.op) {
-              case 'delete_line':
-                this._deleteBlock(op.line, op.end ?? op.line);
-                break;
-              case 'delete_block':
-                this._deleteBlock(op.start, op.end);
-                break;
-              case 'replace_line':
-                this._replaceLine(op.line, op.content);
-                break;
-              case 'insert_line':
-                this._insertBlock(op.line, [{ num: null, text: op.content }]);
-                break;
-              case 'insert_block':
-                this._insertBlock(op.line, op.content.map(t => ({ num: null, text: t })));
-                break;
-              case 'edit_block':
-                this._editBlock(op.start, op.end, op.content.map(t => ({ num: null, text: t })));
-                break;
-              default:
-                throw new Error('未知操作 ' + op.op);
-            }
-          } catch (e) {
-            throw new Error(`操作失败 ${JSON.stringify(op)} -> ${e.message}`);
-          }
-        }
-        return this.lines;
-      }
-      _resolveIndex(origLine) {
-        const idx = this.lines.findIndex(l => l.num === origLine);
-        if (idx === -1) throw new Error(`原始行 ${origLine} 未找到`);
-        return idx;
-      }
-      _deleteBlock(start, end) {
-        const s = this._resolveIndex(start);
-        const e = this._resolveIndex(end);
-        if (s > e) throw new Error('删除范围错误');
-        this.lines.splice(s, e - s + 1);
-      }
-      _replaceLine(line, content) {
-        const idx = this._resolveIndex(line);
-        this.lines[idx].text = content;
-      }
-      _insertBlock(line, newMeta) {
-        let idx = this.lines.findIndex(l => l.num === line);
-        if (idx === -1) {
-          const firstGreater = this.lines.findIndex(l => l.num > line);
-          if (firstGreater === -1) {
-            idx = this.lines.length - 1;
-          } else {
-            idx = firstGreater - 1;
-          }
-        }
-        this.lines.splice(idx + 1, 0, ...newMeta);
-      }
-      _editBlock(start, end, newMeta) {
-        const s = this._resolveIndex(start);
-        const e = this._resolveIndex(end);
-        if (s > e) throw new Error('编辑范围错误');
-        this.lines.splice(s, e - s + 1, ...newMeta);
-      }
-    }
-
-    /**************** 工具函数 ****************/
-    const readLinesWithMeta = code =>
-      code.split('\n').map((t, i) => ({ num: i + 1, text: t }));
-
-    function updateLineNumbers(text) {
-      const el = document.getElementById('lineNumbers');
-      if (!text) {
-        el.textContent = '';
-        return;
-      }
-      const lines = text.split('\n').length;
-      el.textContent = Array.from({ length: lines }, (_, i) => i + 1).join('\n');
-    }
-
-    function updateVersionSelector() {
-      const sel = document.getElementById('versionSelect');
-      sel.innerHTML = '';
-      if (codeHistory.length === 0) {
-        const opt = document.createElement('option');
-        opt.value = '0';
-        opt.textContent = '当前版本';
-        sel.appendChild(opt);
-        sel.disabled = true;
-        return;
-      }
-      sel.disabled = false;
-      codeHistory.forEach((_, i) => {
-        const opt = document.createElement('option');
-        opt.value = i;
-        opt.textContent = i === codeHistory.length - 1
-          ? `当前版本 (${i})`
-          : `历史版本 ${i}`;
-        sel.appendChild(opt);
-      });
-      sel.value = codeHistory.length - 1;
-    }
-
-    function loadVersion() {
-      const idx = parseInt(document.getElementById('versionSelect').value, 10);
-      if (idx >= 0 && idx < codeHistory.length) {
-        currentVersion = idx;
-        const item = codeHistory[idx];
-        document.getElementById('codeOutput').value = item.output;
-        updateLineNumbers(item.output);
-      }
-    }
-
-    function copyToClipboard() {
-      const txt = document.getElementById('codeOutput');
-      txt.select();
-      document.execCommand('copy');
-      alert('已复制到剪贴板！');
-    }
-
-    function togglePanel() {
-      const panel = document.getElementById('leftPanel');
-      const btn = document.getElementById('expandBtn');
-      if (panel.classList.contains('collapsed')) {
-        panel.classList.remove('collapsed');
-        btn.style.display = 'none';
-      } else {
-        panel.classList.add('collapsed');
-        btn.style.display = 'block';
-      }
-    }
-
-    /**************** GPT 调用 ****************/
-    async function generatePatch(userRequest, meta) {
-      const code = meta.map(l => `${l.num}: ${l.text}`).join('\n');
-      const prompt = `你是增量编辑助手,按协议返回 JSON 对象。行号基于原始代码，不要解释。用户需求:${userRequest}\n代码:\n${code}`;
-      const body = {
-        model: apiSettings.model,
-        messages: [{ role: 'user', content: prompt }],
-        temperature: 0
-      };
-      const r = await fetch(`${apiSettings.baseURL}/chat/completions`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${apiSettings.apiKey}`
-        },
-        body: JSON.stringify(body)
-      });
-      if (!r.ok) {
-        const err = await r.json();
-        throw new Error(`API Error ${r.status}: ${err.error?.message}`);
-      }
-      const data = await r.json();
-      let obj;
+/**************** 提取JSON内容的辅助函数 ****************/
+function extractJsonFromText(text) {
+  // 首先尝试直接解析
+  try {
+    return JSON.parse(text);
+  } catch (e) {
+    // 如果直接解析失败，尝试从文本中提取JSON
+    const jsonMatch = text.match(/```json\s*\n([\s\S]*?)\n```/);
+    if (jsonMatch) {
       try {
-        obj = JSON.parse(data.choices[0].message.content.trim());
+        return JSON.parse(jsonMatch[1]);
       } catch (e) {
-        throw new Error('解析 GPT 输出失败');
+        // 继续尝试其他方法
       }
-      if (!Array.isArray(obj.ops)) throw new Error('GPT 返回格式有误');
-      return obj.ops;
     }
-
-    /**************** 执行编辑 ****************/
-    async function executeEdit() {
-      if (isExecuting) return;
-      const code = document.getElementById('codeInput').value;
-      const req = document.getElementById('userRequest').value;
-      if (!code.trim() || !req.trim()) return alert('请输入代码和需求');
-      if (!apiSettings.apiKey) return alert('请先配置 API Key');
-
-      const btn = document.querySelector('.execute-btn');
-      btn.disabled = true;
-      btn.textContent = '处理中...';
-      isExecuting = true;
+    
+    // 尝试找到第一个 { 到最后一个 } 之间的内容
+    const firstBrace = text.indexOf('{');
+    const lastBrace = text.lastIndexOf('}');
+    if (firstBrace !== -1 && lastBrace !== -1 && firstBrace < lastBrace) {
       try {
-        const meta = readLinesWithMeta(code);
-        const ops = await generatePatch(req, meta);
-        showDebugInfo({ ops });
-        const result = new PatchApplier(meta)
-          .apply(ops)
-          .map(l => l.text)
-          .join('\n');
-        codeHistory.push({ output: result });
-        updateVersionSelector();
-        document.getElementById('codeOutput').value = result;
-        updateLineNumbers(result);
-        btn.textContent = '完成';
-        setTimeout(() => {
-          btn.textContent = '执行编辑';
-        }, 2000);
-      } catch (err) {
-        showDebugInfo({ error: err.message, stack: err.stack });
-        alert('编辑失败: ' + err.message);
-      } finally {
-        btn.disabled = false;
-        isExecuting = false;
+        return JSON.parse(text.substring(firstBrace, lastBrace + 1));
+      } catch (e) {
+        // 继续尝试其他方法
       }
     }
+    
+    // 如果都失败了，抛出原始错误
+    throw new Error('无法从响应中提取有效的JSON');
+  }
+}
 
-    /**************** 启动 ****************/
-    initialize();
-  </script>
+/**************** 改进的GPT调用 ****************/ 
+async function generatePatch(userRequest,meta){
+  const code=meta.map(l=>`${l.num}: ${l.text}`).join('\n');
+  
+  // 改进的提示词，更加明确和详细
+  const prompt = `你是一个专业的代码编辑助手。请分析用户的修改需求，并返回一个严格的JSON对象来描述所需的编辑操作。
+
+用户需求：${userRequest}
+
+原始代码：
+${code}
+
+请返回一个JSON对象，格式如下：
+{
+  "ops": [
+    {
+      "op": "操作类型",
+      "参数": "值"
+    }
+  ]
+}
+
+支持的操作类型：
+1. "delete_line" - 删除单行：{"op": "delete_line", "line": 行号}
+2. "delete_block" - 删除多行：{"op": "delete_block", "start": 起始行号, "end": 结束行号}
+3. "replace_line" - 替换单行：{"op": "replace_line", "line": 行号, "content": "新内容"}
+4. "insert_line" - 插入单行：{"op": "insert_line", "line": 插入位置行号, "content": "新内容"}
+5. "insert_block" - 插入多行：{"op": "insert_block", "line": 插入位置行号, "content": ["行1", "行2", "行3"]}
+6. "edit_block" - 编辑多行：{"op": "edit_block", "start": 起始行号, "end": 结束行号, "content": ["新行1", "新行2"]}
+
+重要说明：
+- 行号基于原始代码的编号
+- 只返回JSON对象，不要包含任何解释文字
+- 确保JSON格式正确，所有字符串都用双引号包围
+- 操作按顺序执行，请合理安排操作顺序
+
+现在请分析代码并返回JSON操作对象：`;
+
+  const body = {
+    model: apiSettings.model,
+    messages: [
+      {
+        role: "system",
+        content: "你是一个专业的代码编辑助手。请严格按照要求返回JSON格式的编辑操作，不要添加任何解释性文字。"
+      },
+      {
+        role: "user",
+        content: prompt
+      }
+    ],
+    response_format: { type: "json_object" },
+    temperature: 0.1,
+    max_tokens: 2000
+  };
+
+  const response = await fetch(`${apiSettings.baseURL}/chat/completions`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${apiSettings.apiKey}`
+    },
+    body: JSON.stringify(body)
+  });
+
+  if (!response.ok) {
+    const error = await response.json();
+    throw new Error(`API Error ${response.status}: ${error.error?.message || '未知错误'}`);
+  }
+
+  const data = await response.json();
+  const rawContent = data.choices[0].message.content.trim();
+  
+  // 使用改进的JSON提取函数
+  let parsedResult;
+  try {
+    parsedResult = extractJsonFromText(rawContent);
+  } catch (e) {
+    // 如果解析失败，显示原始内容用于调试
+    showDebugInfo({
+      error: 'JSON解析失败',
+      rawContent: rawContent,
+      parseError: e.message
+    });
+    throw new Error(`GPT返回的内容无法解析为JSON: ${e.message}`);
+  }
+
+  // 验证返回的JSON结构
+  if (!parsedResult || typeof parsedResult !== 'object') {
+    throw new Error('GPT返回的不是有效的JSON对象');
+  }
+
+  if (!Array.isArray(parsedResult.ops)) {
+    throw new Error('GPT返回的JSON中缺少ops数组');
+  }
+
+  // 验证每个操作的基本结构
+  for (let i = 0; i < parsedResult.ops.length; i++) {
+    const op = parsedResult.ops[i];
+    if (!op.op || typeof op.op !== 'string') {
+      throw new Error(`操作 ${i} 缺少有效的op字段`);
+    }
+  }
+
+  return parsedResult.ops;
+}
+
+/**************** 执行编辑 ****************/ 
+async function executeEdit(){
+  if(isExecuting) return;
+  
+  const code=document.getElementById('codeInput').value;
+  const req=document.getElementById('userRequest').value;
+  
+  if(!code.trim()||!req.trim()) return alert('请输入代码和需求');
+  if(!apiSettings.apiKey) return alert('请先配置 API Key');
+  
+  const btn=document.querySelector('.execute-btn');
+  btn.disabled=true;
+  btn.textContent='处理中...';
+  isExecuting=true;
+  
+  try{
+    const meta=readLinesWithMeta(code);
+    const ops=await generatePatch(req,meta);
+    
+    showDebugInfo({
+      originalLines: meta.length,
+      operations: ops,
+      rawOps: ops
+    });
+    
+    const result=new PatchApplier(meta).apply(ops).map(l=>l.text).join('\n');
+    
+    codeHistory.push({output:result});
+    updateVersionSelector();
+    document.getElementById('codeOutput').value=result;
+    updateLineNumbers(result);
+    
+    btn.textContent='编辑完成';
+    setTimeout(()=>btn.textContent='执行编辑',2000);
+    
+  }catch(err){
+    showDebugInfo({
+      error: err.message,
+      stack: err.stack,
+      timestamp: new Date().toISOString()
+    });
+    alert('编辑失败: '+err.message);
+  }finally{
+    btn.disabled=false;
+    isExecuting=false;
+  }
+}
+
+/**************** 启动 ****************/ 
+initialize();
+</script>
 </body>
 </html>

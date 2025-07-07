@@ -442,13 +442,29 @@ function_call:
               const editedContent = insertMetaBlocks(rawContent, metaBlocks);
 
               const targetPath = `${targetDir}/${file.path.substring(sourceDir.length + 1)}`;
+              
+              // 检查目标文件是否已存在，如果存在则获取其 SHA
+              let existingSha = undefined;
+              try {
+                const existingFile = await getFileContent(ghUser, ghRepo, targetPath, ghToken);
+                existingSha = existingFile.sha;
+                log(`目标文件已存在，将更新: ${targetPath}`);
+              } catch (err) {
+                if (err.message.includes('404')) {
+                  log(`目标文件不存在，将创建: ${targetPath}`);
+                } else {
+                  throw err;
+                }
+              }
+              
               await commitFile(
                 ghUser,
                 ghRepo,
                 targetPath,
                 ghToken,
                 editedContent,
-                `AI 笔记索引: ${file.path}`
+                `AI 笔记索引: ${file.path}`,
+                existingSha
               );
               log(`已提交带meta标注的文件到 ${targetPath}`);
 

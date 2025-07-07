@@ -79,247 +79,85 @@
     </div>
 
     <script>
-      /* ================================
-       * 工具：日志输出与状态追踪
-       * ============================== */
+      /* ========== 日志工具 ========== */
       const statusBox = document.getElementById('status');
-      function log(msg, type = 'info') {
+      const log = (msg, type = 'info') => {
         const el = document.createElement('div');
         el.textContent = `[${new Date().toLocaleString()}] ${msg}`;
-        el.style.padding = '.2rem 0';
         if (type === 'error') el.style.color = 'crimson';
         statusBox.prepend(el);
-      }
+      };
 
-      /* ================================
-       * 工具：localStorage 设置持久化
-       * ============================== */
-      const fields = [
-        'gh-token', 'gh-user', 'gh-repo', 'source-dir', 'target-dir', 'log-file', 'openai-key', 'openai-model'
-      ];
-      (function loadSaved() {
-        if (localStorage.getItem('ai-note-remember') === 'true') {
-          fields.forEach(id => {
-            const v = localStorage.getItem('ai-note-' + id);
-            if (v !== null) document.getElementById(id).value = v;
+      /* ========== localStorage 持久化 ========== */
+      const fields = ['gh-token','gh-user','gh-repo','source-dir','target-dir','log-file','openai-key','openai-model'];
+      (function loadSaved(){
+        if(localStorage.getItem('ai-note-remember')==='true'){
+          fields.forEach(id=>{
+            const v=localStorage.getItem('ai-note-'+id);
+            if(v!==null) document.getElementById(id).value=v;
           });
-          document.getElementById('remember').checked = true;
+          document.getElementById('remember').checked=true;
         }
       })();
-      function saveSettings() {
-        if (document.getElementById('remember').checked) {
-          localStorage.setItem('ai-note-remember', 'true');
-          fields.forEach(id => {
-            localStorage.setItem('ai-note-' + id, document.getElementById(id).value);
-          });
-        } else {
+      function saveSettings(){
+        if(document.getElementById('remember').checked){
+          localStorage.setItem('ai-note-remember','true');
+          fields.forEach(id=>localStorage.setItem('ai-note-'+id,document.getElementById(id).value));
+        }else{
           localStorage.removeItem('ai-note-remember');
-          fields.forEach(id => localStorage.removeItem('ai-note-' + id));
+          fields.forEach(id=>localStorage.removeItem('ai-note-'+id));
         }
       }
 
-      /* ================================
-       * GitHub API 请求封装
-       * ============================== */
-      function ghRequest(method, path, token, body = undefined) {
-        return fetch(`https://api.github.com${path}`, {
-          method,
-          headers: {
-            'Authorization': `Bearer ${token}`,
-            'Accept': 'application/vnd.github+json'
-          },
-          body: body ? JSON.stringify(body) : undefined
-        }).then(async res => {
-          if (!res.ok) {
-            const text = await res.text();
-            throw new Error(`GitHub API ${method} ${path} failed: ${res.status} ${text}`);
+      /* ========== GitHub API ========== */
+      const ghRequest=(method,path,token,body)=>fetch(`https://api.github.com${path}`,{
+        method,
+        headers:{'Authorization':`Bearer ${token}`,'Accept':'application/vnd.github+json'},
+        body:body?JSON.stringify(body):undefined
+      }).then(async r=>{if(!r.ok){throw new Error(`GitHub ${r.status}`);}return r.json();});
+      const listRepoFiles=async(u,r,d,t,a=[])=>{
+        const res=await ghRequest('GET',`/repos/${u}/${r}/contents/${encodeURIComponent(d)}`,t);
+        for(const i of res){i.type==='file'?a.push({path:i.path,sha:i.sha}):await listRepoFiles(u,r,i.path,t,a);}return a;};
+      const getFileContent=async(u,r,p,t)=>{const res=await ghRequest('GET',`/repos/${u}/${r}/contents/${encodeURIComponent(p)}`,t);return{content:decodeURIComponent(escape(atob(res.content.replace(/\n/g,'')))),sha:res.sha};};
+      const commitFile=async(u,r,p,t,c,m,s)=>ghRequest('PUT',`/repos/${u}/${r}/contents/${encodeURIComponent(p)}`,t,{message:m,content:btoa(unescape(encodeURIComponent(c))),committer:{name:'AI Bot',email:'ai@example.com'},sha:s});
+      const loadLog=async(u,r,p,t)=>{try{const {content,sha}=await getFileContent(u,r,p,t);return{list:JSON.parse(content),sha};}catch(e){if(e.message.includes('404'))return{list:[],sha:undefined};throw e;}};
+
+      /* ========== OpenAI meta 生成 ========== */
+      async function openaiGenerateMeta(apiKey,model,markdown){
+        const sys='你是一位 Markdown 日志索引器。\n任务：1) 找出所有##时间标题 2) 只输出对应meta块，不含正文。';
+        const usr='以下 Markdown：\n```markdown\n'+markdown+'\n```';
+        const res=await fetch('https://api.openai.com/v1/chat/completions',{method:'POST',headers:{'Authorization':`Bearer ${apiKey}`,'Content-Type':'application/json'},body:JSON.stringify({model,messages:[{role:'system',content:sys},{role:'user',content:usr}],temperature:0.2})});
+        if(!res.ok)throw new Error('OpenAI '+res.status);return(await res.json()).choices[0].message.content;
+      }
+
+      const parseMetaList=txt=>{const map={},re=/标题:\s*(\d{4}\/\d{2}\/\d{2} \d{2}:\d{2}:\d{2})[\s\S]*?```yaml meta\n([\s\S]*?)```/g;let m;while((m=re.exec(txt))!==null){map[m[1]]=m[2].trim();}return map;};
+      const insertMetaBlocks=(orig,map)=>orig.replace(/^## (\d{4}\/\d{2}\/\d{2} \d{2}:\d{2}:\d{2})$/gm,(m,ts)=>map[ts]?`${m}\n\`\`\`yaml meta\n${map[ts]}\n\`\`\``:m);
+
+      /* ========== 表单提交 ========== */
+      document.getElementById('config-form').addEventListener('submit',async e=>{
+        e.preventDefault();saveSettings();
+        const v=id=>document.getElementById(id).value.trim();
+        const [kU,kR,sDir,tDir,logP,oaKey,mdl,ghT]=[v('gh-user'),v('gh-repo'),v('source-dir').replace(/^\/+|\/+$/g,''),v('target-dir').replace(/^\/+|\/+$/g,''),v('log-file'),v('openai-key'),v('openai-model'),v('gh-token')];
+        try{
+          log('读取文件列表…');
+          const files=await listRepoFiles(kU,kR,sDir,ghT);
+          log(`共有 ${files.length} 个文件`);
+          const {list:done,sha:logSha}=await loadLog(kU,kR,logP,ghT);const doneSet=new Set(done.map(i=>i.path));
+          for(const f of files.filter(f=>f.path.endsWith('.md')&&!doneSet.has(f.path))){
+            try{
+              log('处理 '+f.path);
+              const {content}=await getFileContent(kU,kR,f.path,ghT);
+              const metaTxt=await openaiGenerateMeta(oaKey,mdl,content);
+              const finalMd=insertMetaBlocks(content,parseMetaList(metaTxt));
+              const target=`${tDir}/${f.path.substring(sDir.length+1)}`;
+              await commitFile(kU,kR,target,ghT,finalMd,'AI meta insert: '+f.path);
+              done.push({path:f.path,editedAt:new Date().toISOString()});
+              log('完成 '+f.path);
+            }catch(err){log(err.message,'error');}
           }
-          return res.json();
-        });
-      }
-
-      /* ================================
-       * 功能：列出目录下所有文件 (递归)
-       * ============================== */
-      async function listRepoFiles(user, repo, dir, token, all = []) {
-        const res = await ghRequest('GET', `/repos/${user}/${repo}/contents/${encodeURIComponent(dir)}`, token);
-        for (const item of res) {
-          if (item.type === 'file') {
-            all.push({ path: item.path, sha: item.sha });
-          } else if (item.type === 'dir') {
-            await listRepoFiles(user, repo, item.path, token, all);
-          }
-        }
-        return all;
-      }
-
-      /* ================================
-       * 功能：获取文件内容 (base64 -> utf8)
-       * ============================== */
-      async function getFileContent(user, repo, path, token) {
-        const res = await ghRequest('GET', `/repos/${user}/${repo}/contents/${encodeURIComponent(path)}`, token);
-        const rawContent = decodeURIComponent(escape(atob(res.content.replace(/\n/g, ''))));
-        return { content: rawContent, sha: res.sha };
-      }
-
-      /* ================================
-       * OpenAI：生成 meta 区块 (只输出 meta，不返回正文)  *** MOD START ***
-       * ============================== */
-      async function openaiGenerateMeta(apiKey, model, fullMarkdown) {
-        // Prompt：让 GPT 只输出 "标题+meta" 列表，不包含原文内容
-        const systemPrompt = `你是一位 Markdown 日志索引器。\n任务：\n1. 扫描用户提供的完整 Markdown，找出所有行首形如“## YYYY/MM/DD hh:mm:ss”的标题。\n2. 仅为每个标题生成一个 meta fenced block：\n   - 若正文不含\\`\\`\\`代码块，生成：\n     \n     \\\\n     ```yaml meta\n     iso_datetime: <ISO 8601 带时区>\n     summary: <不超过15字的中文摘要>\n     ```\n   - 若正文含 \\`\\`\\` 代码块，生成：\n     \n     \\\\n     ```yaml meta\n     iso_datetime: <ISO 8601 带时区>\n     function_call:\n       name: <函数名>\n       description: <功能描述>\n       inputs:\n         - <参数1>: <类型>\n         - <参数2>: <类型>\n       outputs:\n         - <返回值>: <类型或说明>\n     ```\n3. 输出顺序与标题顺序一致，每条记录之间用一个空行分隔。\n4. 绝不要重复输出任何正文内容，也不要输出除 meta 之外的解释。`;
-
-        const userPrompt = `下面是原始 Markdown，请开始扫描：\n\n\`\`\`markdown\n${fullMarkdown}\n\`\`\``;
-
-        const res = await fetch('https://api.openai.com/v1/chat/completions', {
-          method: 'POST',
-          headers: {
-            'Authorization': `Bearer ${apiKey}`,
-            'Content-Type': 'application/json'
-          },
-          body: JSON.stringify({
-            model,
-            messages: [
-              { role: 'system', content: systemPrompt },
-              { role: 'user', content: userPrompt }
-            ],
-            temperature: 0.2
-          })
-        });
-        if (!res.ok) {
-          const text = await res.text();
-          throw new Error(`OpenAI API error: ${res.status} ${text}`);
-        }
-        const data = await res.json();
-        return data.choices[0].message.content.trim();
-      }
-      /* ================================  *** MOD END *** */
-
-      /* ================================
-       * 功能：将 meta 区块插入原始 Markdown  *** MOD START ***
-       * ============================== */
-      function insertMetaBlocks(metaContent, originalMarkdown) {
-        // 解析 "标题: <ts>" + yaml block
-        const metaMap = {};
-        const metaRegex = /标题:\s*(\d{4}\/\d{2}\/\d{2} \d{2}:\d{2}:\d{2})[^\n]*\n```yaml meta\n([\s\S]*?)```/g;
-        let m;
-        while ((m = metaRegex.exec(metaContent)) !== null) {
-          metaMap[m[1]] = m[2].trim();
-        }
-
-        const lines = originalMarkdown.split('\n');
-        const out = [];
-        for (let i = 0; i < lines.length; i++) {
-          out.push(lines[i]);
-          const tsMatch = lines[i].match(/^## (\d{4}\/\d{2}\/\d{2} \d{2}:\d{2}:\d{2})$/);
-          if (tsMatch && metaMap[tsMatch[1]]) {
-            out.push('```yaml meta');
-            out.push(metaMap[tsMatch[1]]);
-            out.push('```');
-          }
-        }
-        return out.join('\n');
-      }
-      /* ================================  *** MOD END *** */
-
-      /* ================================
-       * 功能：提交文件（写入/覆盖）到目标目录
-       * ============================== */
-      async function commitFile(user, repo, path, token, content, message, sha = undefined) {
-        const base64Content = btoa(unescape(encodeURIComponent(content)));
-        const body = {
-          message,
-          content: base64Content,
-          committer: { name: 'AI Note Bot', email: 'ai-note-bot@example.com' }
-        };
-        if (sha) body.sha = sha;
-        return ghRequest('PUT', `/repos/${user}/${repo}/contents/${encodeURIComponent(path)}`, token, body);
-      }
-
-      /* ================================
-       * 功能：获取 AI 编辑日志文件
-       * ============================== */
-      async function loadLog(user, repo, path, token) {
-        try {
-          const { content, sha } = await getFileContent(user, repo, path, token);
-          return { list: JSON.parse(content), sha };
-        } catch (err) {
-          if (err.message.includes('404')) return { list: [], sha: undefined };
-          throw err;
-        }
-      }
-
-      /* ================================
-       * 主入口：表单提交事件
-       * ============================== */
-      document.getElementById('config-form').addEventListener('submit', async e => {
-        e.preventDefault();
-        saveSettings();
-
-        const ghToken = document.getElementById('gh-token').value.trim();
-        const ghUser = document.getElementById('gh-user').value.trim();
-        const ghRepo = document.getElementById('gh-repo').value.trim();
-        const sourceDir = document.getElementById('source-dir').value.trim().replace(/^\/+/g, '').replace(/\/+$/g, '');
-        const targetDir = document.getElementById('target-dir').value.trim().replace(/^\/+/g, '').replace(/\/+$/g, '');
-        const logFile = document.getElementById('log-file').value.trim();
-        const openaiKey = document.getElementById('openai-key').value.trim();
-        const model = document.getElementById('openai-model').value;
-
-        log('开始加载文件列表…');
-        try {
-          const files = await listRepoFiles(ghUser, ghRepo, sourceDir, ghToken);
-          log(`源目录共发现 ${files.length} 个文件。`);
-
-          const { list: processed, sha: logSha } = await loadLog(ghUser, ghRepo, logFile, ghToken);
-          const processedSet = new Set(processed.map(p => p.path));
-          const toProcess = files.filter(f => !processedSet.has(f.path) && f.path.endsWith('.md'));
-          log(`待处理文件：${toProcess.length} 个。`);
-
-          for (const file of toProcess) {
-            log(`处理文件：${file.path}`);
-            try {
-              // 1. 读取原始 Markdown
-              const { content: rawContent } = await getFileContent(ghUser, ghRepo, file.path, ghToken);
-
-              // 2. 调用 OpenAI 生成 meta 列表（不包含正文）
-              const metaContent = await openaiGenerateMeta(openaiKey, model, rawContent);
-
-              // 3. 将 meta 区块插入原文
-              const editedContent = insertMetaBlocks(metaContent, rawContent);
-
-              // 4. 写入目标目录
-              const targetPath = `${targetDir}/${file.path.substring(sourceDir.length + 1)}`;
-              await commitFile(
-                ghUser,
-                ghRepo,
-                targetPath,
-                ghToken,
-                editedContent,
-                `AI 笔记整理: ${file.path}`
-              );
-              log(`已提交整理后的文件到 ${targetPath}`);
-
-              // 5. 更新日志列表
-              processed.push({ path: file.path, editedAt: new Date().toISOString() });
-            } catch (err) {
-              log(`文件处理失败: ${err.message}`, 'error');
-            }
-          }
-
-          // 6. 保存日志文件
-          await commitFile(
-            ghUser,
-            ghRepo,
-            logFile,
-            ghToken,
-            JSON.stringify(processed, null, 2),
-            '更新 AI 笔记整理日志',
-            logSha
-          );
-          log('AI 笔记整理完成。');
-        } catch (err) {
-          log(err.message, 'error');
-        }
+          await commitFile(kU,kR,logP,ghT,JSON.stringify(done,null,2),'update log',logSha);
+          log('全部完成');
+        }catch(err){log(err.message,'error');}
       });
     </script>
   </body>

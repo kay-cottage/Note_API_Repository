@@ -382,18 +382,18 @@
             baseUrl: 'https://api.openai.com/v1'
         };
 
-        // SHA6哈希函数 (保持原Python代码逻辑)
+        // SHA6哈希函数
         function sha6(text) {
             return btoa(text).substring(0, 6);
         }
 
-        // 锚点驱动的补丁应用器 (完全保持原Python代码逻辑)
+        // 锚点驱动的补丁应用器
         class AnchorPatchApplier {
             constructor(lines) {
                 this.lines = Array.isArray(lines) ? [...lines] : lines.split('\n');
             }
 
-            // 查找锚点 (对应Python的_find方法)
+            // 查找锚点位置
             _find(pattern, start = 0) {
                 const regex = new RegExp(pattern);
                 for (let idx = start; idx < this.lines.length; idx++) {
@@ -401,13 +401,14 @@
                         return idx;
                     }
                 }
-                throw new Error(`anchor '${pattern}' not found`);
+                throw new Error(`anchor '${pattern}' not found in lines ${start} to ${this.lines.length - 1}`);
             }
 
-            // 在锚点位置插入新内容（锚点行被新内容替换）
+            // 在锚点位置插入新内容（替换锚点行）
             insertAtAnchor(anchor, newLines, offset = 0) {
                 const pos = this._find(anchor) + offset;
-                this.lines.splice(pos, 0, ...newLines);
+                // 删除原行，插入新内容
+                this.lines.splice(pos, 1, ...newLines);
             }
 
             // 在锚点之后插入新内容
@@ -427,6 +428,7 @@
                 const idx = this._find(anchor) + offset;
                 const old = this.lines[idx];
                 
+                // 验证匹配条件
                 if (match && !new RegExp(match).test(old)) {
                     throw new Error(`match check failed for line: ${old}`);
                 }
@@ -439,73 +441,77 @@
 
             // 删除从锚点开始的代码块
             deleteBlock(anchor, tailAnchor = null, count = null) {
-                const s = this._find(anchor);
-                let e;
+                const startIdx = this._find(anchor);
+                let endIdx;
                 
                 if (tailAnchor) {
-                    e = this._find(tailAnchor, s + 1) + 1; // 包含tail_anchor行
+                    endIdx = this._find(tailAnchor, startIdx + 1) + 1; // 包含tail_anchor行
                 } else if (count !== null) {
-                    e = s + count;
+                    endIdx = startIdx + count;
                 } else {
                     throw new Error('delete_block requires tail_anchor or count');
                 }
                 
-                this.lines.splice(s, e - s);
+                this.lines.splice(startIdx, endIdx - startIdx);
             }
 
             // 替换从锚点到tail_anchor的代码块
             replaceBlock(anchor, newLines, tailAnchor) {
-                const s = this._find(anchor);
-                const e = this._find(tailAnchor, s + 1) + 1; // 包含tail_anchor行
-                this.lines.splice(s, e - s, ...newLines);
+                const startIdx = this._find(anchor);
+                const endIdx = this._find(tailAnchor, startIdx + 1) + 1; // 包含tail_anchor行
+                this.lines.splice(startIdx, endIdx - startIdx, ...newLines);
             }
 
-            // 应用操作列表 (完全保持原Python逻辑)
+            // 应用操作列表
             applyOps(ops) {
                 for (const op of ops) {
-                    const typ = op.op;
+                    const opType = op.op;
                     
-                    if (typ === 'insert_at_anchor') {
-                        this.insertAtAnchor(op.anchor, op.new, op.offset || 0);
-                    } else if (typ === 'insert_after') {
-                        this.insertAfter(op.anchor, op.new, op.offset || 0);
-                    } else if (typ === 'insert_before') {
-                        this.insertBefore(op.anchor, op.new, op.offset || 0);
-                    } else if (typ === 'replace_line') {
-                        // Handle both 'content' and 'new' fields (保持原Python逻辑)
-                        let content = op.content;
-                        if (content === undefined && op.new !== undefined) {
-                            const newValue = op.new;
-                            // Handle both string and list cases
-                            if (Array.isArray(newValue) && newValue.length > 0) {
-                                content = newValue[0];
-                            } else if (typeof newValue === 'string') {
-                                content = newValue;
+                    try {
+                        if (opType === 'insert_at_anchor') {
+                            this.insertAtAnchor(op.anchor, op.new, op.offset || 0);
+                        } else if (opType === 'insert_after') {
+                            this.insertAfter(op.anchor, op.new, op.offset || 0);
+                        } else if (opType === 'insert_before') {
+                            this.insertBefore(op.anchor, op.new, op.offset || 0);
+                        } else if (opType === 'replace_line') {
+                            // 处理 content 和 new 字段
+                            let content = op.content;
+                            if (content === undefined && op.new !== undefined) {
+                                const newValue = op.new;
+                                if (Array.isArray(newValue) && newValue.length > 0) {
+                                    content = newValue[0];
+                                } else if (typeof newValue === 'string') {
+                                    content = newValue;
+                                }
                             }
+                            if (content === undefined) {
+                                throw new Error("replace_line missing 'content' or 'new'");
+                            }
+                            this.replaceLine(
+                                op.anchor,
+                                content,
+                                op.offset || 0,
+                                op.match,
+                                op.orig_hash
+                            );
+                        } else if (opType === 'delete_block') {
+                            this.deleteBlock(op.anchor, op.tail_anchor, op.count);
+                        } else if (opType === 'replace_block') {
+                            this.replaceBlock(op.anchor, op.new, op.tail_anchor);
+                        } else {
+                            throw new Error(`unknown operation: ${opType}`);
                         }
-                        if (content === undefined) {
-                            throw new Error("replace_line missing 'content' or 'new'");
-                        }
-                        this.replaceLine(
-                            op.anchor,
-                            content,
-                            op.offset || 0,
-                            op.match,
-                            op.orig_hash
-                        );
-                    } else if (typ === 'delete_block') {
-                        this.deleteBlock(op.anchor, op.tail_anchor, op.count);
-                    } else if (typ === 'replace_block') {
-                        this.replaceBlock(op.anchor, op.new, op.tail_anchor);
-                    } else {
-                        throw new Error(`unknown op ${typ}`);
+                    } catch (error) {
+                        console.error(`Error applying operation ${opType}:`, error);
+                        throw error;
                     }
                 }
                 return this.lines;
             }
         }
 
-        // 完全保持原Python的提示词协议
+        // 锚点协议提示词
         const ANCHOR_PROTOCOL = `你是增量编辑 Patch 应用器助手，只返回严格 JSON 数组或字典，不要任何解释。
 禁止使用行号字段(line/start/end)，所有定位仅靠 anchor 正则。
 支持 ops：insert_at_anchor, insert_after, insert_before, replace_line, delete_block, replace_block。
@@ -516,7 +522,7 @@
 - delete_block: 删除从anchor开始的代码块
 - replace_block: 替换从anchor到tail_anchor的代码块`;
 
-        // 生成补丁 (完全保持原Python逻辑)
+        // 生成补丁
         async function generatePatchWithGpt(userRequest, codeLines, model = 'gpt-4o') {
             const prompt = `${ANCHOR_PROTOCOL}
 用户需求：${userRequest}
@@ -542,14 +548,21 @@ ${codeLines.join('\n')}
             });
 
             if (!response.ok) {
-                throw new Error(`API请求失败: ${response.status} ${response.statusText}`);
+                const errorText = await response.text();
+                throw new Error(`API请求失败: ${response.status} ${response.statusText} - ${errorText}`);
             }
 
             const data = await response.json();
             const raw = data.choices[0].message.content.trim();
             console.log('GPT Response:', raw);
             
-            const parsedData = JSON.parse(raw);
+            let parsedData;
+            try {
+                parsedData = JSON.parse(raw);
+            } catch (e) {
+                throw new Error(`Invalid JSON response: ${raw}`);
+            }
+            
             const ops = parsedData.operations !== undefined ? parsedData.operations : parsedData;
             
             if (!Array.isArray(ops)) {
@@ -600,7 +613,7 @@ ${codeLines.join('\n')}
             }
         }
 
-        // 处理代码编辑 (保持原Python的主要逻辑)
+        // 处理代码编辑
         async function processCode() {
             const inputCode = document.getElementById('inputCode').value;
             const request = document.getElementById('requestInput').value;
@@ -628,6 +641,8 @@ ${codeLines.join('\n')}
                 const codeLines = inputCode.split('\n');
                 const operations = await generatePatchWithGpt(request, codeLines, apiSettings.model);
                 
+                console.log('Operations to apply:', operations);
+                
                 const applier = new AnchorPatchApplier(codeLines);
                 const newLines = applier.applyOps(operations);
                 const newCode = newLines.join('\n');
@@ -638,7 +653,7 @@ ${codeLines.join('\n')}
                 
                 document.getElementById('outputCode').value = newCode;
                 updateVersionInfo();
-                setStatus('Patch applied successfully.', 'success');
+                setStatus('Patch应用成功', 'success');
                 
             } catch (error) {
                 console.error('处理失败:', error);
@@ -675,8 +690,18 @@ ${codeLines.join('\n')}
             const textArea = document.getElementById(type === 'input' ? 'inputCode' : 'outputCode');
             textArea.select();
             textArea.setSelectionRange(0, 99999);
-            document.execCommand('copy');
-            setStatus(`${type === 'input' ? '输入' : '输出'}代码已复制`, 'success');
+            
+            try {
+                document.execCommand('copy');
+                setStatus(`${type === 'input' ? '输入' : '输出'}代码已复制`, 'success');
+            } catch (err) {
+                // 使用现代API
+                navigator.clipboard.writeText(textArea.value).then(() => {
+                    setStatus(`${type === 'input' ? '输入' : '输出'}代码已复制`, 'success');
+                }).catch(() => {
+                    setStatus('复制失败', 'error');
+                });
+            }
         }
 
         // 清空请求
@@ -721,18 +746,15 @@ ${codeLines.join('\n')}
                 apiSettings.baseUrl = newBaseUrl || 'https://api.openai.com/v1';
             }
             
-            localStorage.setItem('apiSettings', JSON.stringify(apiSettings));
+            // 使用内存存储而非localStorage
             document.getElementById('modelInfo').textContent = `当前模型: ${apiSettings.model}`;
             closeSettings();
             setStatus('设置已保存', 'success');
         }
 
         function loadSettings() {
-            const saved = localStorage.getItem('apiSettings');
-            if (saved) {
-                apiSettings = JSON.parse(saved);
-                document.getElementById('modelInfo').textContent = `当前模型: ${apiSettings.model}`;
-            }
+            // 从内存加载设置，不使用localStorage
+            document.getElementById('modelInfo').textContent = `当前模型: ${apiSettings.model}`;
         }
 
         // 状态管理

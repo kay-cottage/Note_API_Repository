@@ -5,107 +5,48 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>AI代码编辑器</title>
     <style>
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-        }
-        body {
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            background: #1a1a1a;
-            color: #ffffff;
-            height: 100vh;
-            display: flex;
-            flex-direction: column;
-        }
-        .header {
-            background: #2d2d2d;
-            padding: 10px 20px;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            border-bottom: 1px solid #444;
-        }
-        .header h1 {
-            color: #61dafb;
-            font-size: 1.5em;
-            user-select: none;
-        }
-        .header-controls {
-            display: flex;
-            gap: 10px;
-        }
-        .btn {
-            background: #4a90e2;
-            color: white;
-            border: none;
-            padding: 8px 16px;
-            border-radius: 4px;
-            cursor: pointer;
-            font-size: 14px;
-            transition: background 0.3s;
-        }
-        .btn:hover { background: #357abd; }
-        .btn.secondary { background: #6c757d; }
-        .btn.secondary:hover { background: #5a6268; }
-        .main-container {
-            flex: 1;
-            display: flex;
-            height: calc(100vh - 60px);
-        }
-        .left-panel { width: 50%; background: #252526; border-right: 1px solid #444; display: flex; flex-direction: column; }
-        .right-panel { width: 50%; background: #1e1e1e; display: flex; flex-direction: column; }
-        .resizer { width: 5px; background: #444; cursor: col-resize; transition: background 0.3s; }
-        .resizer:hover { background: #61dafb; }
-        .panel-header { background: #2d2d2d; padding: 10px; border-bottom: 1px solid #444; display: flex; justify-content: space-between; align-items: center; }
-        .panel-title { font-weight: bold; color: #61dafb; }
-        .code-editor {
-            flex: 1;
-            font-family: 'Consolas', 'Monaco', monospace;
-            font-size: 14px;
-            background: #1e1e1e;
-            color: #d4d4d4;
-            border: none;
-            padding: 15px;
-            resize: none;
-            outline: none;
-            line-height: 1.5;
-        }
-        .request-area { height: 160px; background: #252526; border-top: 1px solid #444; display: flex; flex-direction: column; }
-        .request-header { background: #2d2d2d; padding: 8px 10px; border-bottom: 1px solid #444; font-size: 12px; color: #ccc; }
-        .request-input {
-            flex: 1;
-            background: #1e1e1e;
-            color: #d4d4d4;
-            border: none;
-            padding: 10px;
-            font-family: inherit;
-            font-size: 14px;
-            resize: vertical;
-            outline: none;
-            min-height: 80px;
-        }
-        .request-controls { background: #2d2d2d; padding: 8px 10px; border-top: 1px solid #444; display: flex; gap: 10px; }
-        .version-controls { display: flex; gap: 5px; }
-        .version-btn { background: #3c3c3c; color: #ccc; border: none; padding: 4px 8px; border-radius: 3px; cursor: pointer; font-size: 12px; }
-        .version-btn:hover { background: #4a4a4a; }
-        .version-btn.active { background: #4a90e2; color: white; }
-        .modal { display: none; position: fixed; z-index: 1000; left: 0; top: 0; width: 100%; height: 100%; background-color: rgba(0,0,0,0.5); }
-        .modal-content { background: #2d2d2d; margin: 10% auto; padding: 20px; border-radius: 8px; width: 500px; max-width: 90%; }
-        .modal-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; }
-        .modal-title { color: #61dafb; font-size: 1.2em; }
-        .close { color: #aaa; font-size: 28px; font-weight: bold; cursor: pointer; }
-        .close:hover { color: #fff; }
-        .form-group { margin-bottom: 15px; }
-        .form-group label { display: block; margin-bottom: 5px; color: #ccc; }
-        .form-group input, .form-group select { width: 100%; padding: 8px; background: #1e1e1e; color: #d4d4d4; border: 1px solid #444; border-radius: 4px; font-size: 14px; }
-        .form-group input:focus, .form-group select:focus { outline: none; border-color: #61dafb; }
-        .status-bar { background: #2d2d2d; padding: 5px 10px; border-top: 1px solid #444; font-size: 12px; color: #ccc; display: flex; justify-content: space-between; }
-        .loading { opacity: .6; pointer-events: none; }
-        .error { color: #ff6b6b; }
-        .success { color: #51cf66; }
-        .copy-btn { background: transparent; border: 1px solid #444; color: #ccc; padding: 4px 8px; border-radius: 3px; cursor: pointer; font-size: 12px; }
-        .copy-btn:hover { background: #444; }
+        /* -------- 基础样式保持不变 (略) -------- */
+        *{margin:0;padding:0;box-sizing:border-box}
+        body{font-family:"Segoe UI",Tahoma,Geneva,Verdana,sans-serif;background:#1a1a1a;color:#fff;height:100vh;display:flex;flex-direction:column}
+        .header{background:#2d2d2d;padding:10px 20px;display:flex;justify-content:space-between;align-items:center;border-bottom:1px solid #444}
+        .header h1{color:#61dafb;font-size:1.5em;user-select:none}
+        .header-controls{display:flex;gap:10px}
+        .btn{background:#4a90e2;color:#fff;border:none;padding:8px 16px;border-radius:4px;cursor:pointer;font-size:14px;transition:background .3s}
+        .btn:hover{background:#357abd}
+        .btn.secondary{background:#6c757d}
+        .btn.secondary:hover{background:#5a6268}
+        .main-container{flex:1;display:flex;height:calc(100vh - 60px)}
+        .left-panel{width:50%;background:#252526;border-right:1px solid #444;display:flex;flex-direction:column}
+        .right-panel{width:50%;background:#1e1e1e;display:flex;flex-direction:column}
+        .resizer{width:5px;background:#444;cursor:col-resize;transition:background .3s}
+        .resizer:hover{background:#61dafb}
+        .panel-header{background:#2d2d2d;padding:10px;border-bottom:1px solid #444;display:flex;justify-content:space-between;align-items:center}
+        .panel-title{font-weight:bold;color:#61dafb}
+        .code-editor{flex:1;font-family:Consolas,Monaco,monospace;font-size:14px;background:#1e1e1e;color:#d4d4d4;border:none;padding:15px;resize:none;outline:none;line-height:1.5}
+        .request-area{height:160px;background:#252526;border-top:1px solid #444;display:flex;flex-direction:column}
+        .request-header{background:#2d2d2d;padding:8px 10px;border-bottom:1px solid #444;font-size:12px;color:#ccc}
+        .request-input{flex:1;background:#1e1e1e;color:#d4d4d4;border:none;padding:10px;font-family:inherit;font-size:14px;resize:vertical;outline:none;min-height:80px}
+        .request-controls{background:#2d2d2d;padding:8px 10px;border-top:1px solid #444;display:flex;gap:10px}
+        .version-controls{display:flex;gap:5px}
+        .version-btn{background:#3c3c3c;color:#ccc;border:none;padding:4px 8px;border-radius:3px;cursor:pointer;font-size:12px}
+        .version-btn:hover{background:#4a4a4a}
+        .version-btn.active{background:#4a90e2;color:#fff}
+        .modal{display:none;position:fixed;z-index:1000;left:0;top:0;width:100%;height:100%;background:rgba(0,0,0,.5)}
+        .modal-content{background:#2d2d2d;margin:10% auto;padding:20px;border-radius:8px;width:500px;max-width:90%}
+        .modal-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:20px}
+        .modal-title{color:#61dafb;font-size:1.2em}
+        .close{color:#aaa;font-size:28px;font-weight:bold;cursor:pointer}
+        .close:hover{color:#fff}
+        .form-group{margin-bottom:15px}
+        .form-group label{display:block;margin-bottom:5px;color:#ccc}
+        .form-group input,.form-group select{width:100%;padding:8px;background:#1e1e1e;color:#d4d4d4;border:1px solid #444;border-radius:4px;font-size:14px}
+        .form-group input:focus,.form-group select:focus{outline:none;border-color:#61dafb}
+        .status-bar{background:#2d2d2d;padding:5px 10px;border-top:1px solid #444;font-size:12px;color:#ccc;display:flex;justify-content:space-between}
+        .loading{opacity:.6;pointer-events:none}
+        .error{color:#ff6b6b}
+        .success{color:#51cf66}
+        .copy-btn{background:transparent;border:1px solid #444;color:#ccc;padding:4px 8px;border-radius:3px;cursor:pointer;font-size:12px}
+        .copy-btn:hover{background:#444}
     </style>
 </head>
 <body>
@@ -181,7 +122,7 @@
                 <label for="baseUrl">API基础URL</label>
                 <input type="text" id="baseUrl" placeholder="https://api.openai.com/v1">
             </div>
-            <div class="form-group" style="display:flex; gap:10px; justify-content:flex-end;">
+            <div class="form-group" style="display:flex;gap:10px;justify-content:flex-end">
                 <button class="btn" onclick="saveSettings()">保存设置</button>
                 <button class="btn secondary" onclick="closeSettings()">取消</button>
             </div>
@@ -190,44 +131,46 @@
 
     <script>
         // =============== 公用工具 ===============
-        const STORAGE_KEY = 'aiCodeEditorSettings_v1';
-        const sha6 = txt => btoa(txt).substring(0,6);
-        const toLines = src => Array.isArray(src)?[...src]:src.split('\n');
+        const STORAGE_KEY='aiCodeEditorSettings_v1';
+        const sha6=txt=>btoa(txt).substring(0,6);
+        const toLines=src=>Array.isArray(src)?[...src]:src.split('\n');
 
-        // =============== AnchorPatchApplier (改进版) ===============
+        // =============== AnchorPatchApplier ===============
         class AnchorPatchApplier{
-            constructor(source){ this.lines = toLines(source); this.debug=false; }
-            _assert(idx,eq=false){ const lim=eq?this.lines.length:this.lines.length-1; if(idx<0||idx>lim) throw new Error(`index ${idx} OOB`);}            
-            _find(pat,start=0){
-                const rx = (pat instanceof RegExp) ? pat : (/([\^$])/.test(pat)?new RegExp(pat):new RegExp(`^${pat}$`));
-                for(let i=start;i<this.lines.length;i++){ if(rx.test(this.lines[i])) return i; }
-                throw new Error(`anchor '${pat}' not found`);
-            }
-            _res(anchor,offset=0){ const a=typeof anchor==='number'?anchor:this._find(anchor); const t=a+offset; this._assert(t,true); return{a,t}; }
-            insertAtAnchor(anchor,newLines,offset=0){ newLines=toLines(newLines); const{t}=this._res(anchor,offset); this._assert(t); const[first,...rest]=newLines; this.lines[t]=first; if(rest.length) this.lines.splice(t+1,0,...rest); }
-            insertAfter(anchor,newLines,offset=0){ newLines=toLines(newLines); const{a}=this._res(anchor); const pos=a+1+offset; this._assert(pos,true); this.lines.splice(pos,0,...newLines);}            
-            insertBefore(anchor,newLines,offset=0){ newLines=toLines(newLines); const{a}=this._res(anchor); const pos=a+offset; this._assert(pos,true); this.lines.splice(pos,0,...newLines);}            
-            replaceLine(anchor,content,offset=0,match=null,origHash=null){ const{t}=this._res(anchor,offset); this._assert(t); const old=this.lines[t]; if(match&&!new RegExp(match).test(old)) throw new Error('match fail'); if(origHash&&sha6(old)!==origHash) throw new Error('hash mismatch'); this.lines[t]=content; }
-            deleteBlock(anchor,tail=null,count=null){ const s=this._find(anchor); let del; if(tail){ const e=this._find(tail,s)+1; del=e-s; }else if(count!=null){ del=count; } else throw new Error('need tail or count'); if(del<=0) throw new Error('bad del'); this.lines.splice(s,del);}            
-            replaceBlock(anchor,newLines,tail){ newLines=toLines(newLines); const s=this._find(anchor); const e=this._find(tail,s)+1; if(e<=s) throw new Error('bad range'); this.lines.splice(s,e-s,...newLines);}            
-            applyOps(ops){ for(const op of ops){ switch(op.op){ case 'insert_at_anchor': this.insertAtAnchor(op.anchor,op.new,op.offset||0); break; case 'insert_after': this.insertAfter(op.anchor,op.new,op.offset||0); break; case 'insert_before': this.insertBefore(op.anchor,op.new,op.offset||0); break; case 'replace_line': this.replaceLine(op.anchor, op.content ?? (Array.isArray(op.new)?op.new[0]:op.new), op.offset||0, op.match, op.orig_hash); break; case 'delete_block': this.deleteBlock(op.anchor,op.tail_anchor,op.count); break; case 'replace_block': this.replaceBlock(op.anchor,op.new,op.tail_anchor); break; default: throw new Error('unknown op '+op.op); } } return this.lines; }
+            constructor(src){this.lines=toLines(src);}            
+            _assert(i,eq=false){const lim=eq?this.lines.length:this.lines.length-1;if(i<0||i>lim)throw new Error(`index ${i} OOB`);}            
+            _find(pat,start=0){const rx=pat instanceof RegExp?pat:/([\^$])/.test(pat)?new RegExp(pat):new RegExp(`^${pat}$`);for(let i=start;i<this.lines.length;i++){if(rx.test(this.lines[i]))return i;}throw new Error(`anchor '${pat}' not found`);}            
+            _res(anchor,off=0){const a=typeof anchor==='number'?anchor:this._find(anchor);const t=a+off;this._assert(t,true);return{a,t};}
+            insertAtAnchor(anchor,newLines,off=0){newLines=toLines(newLines);const{t}=this._res(anchor,off);const[first,...rest]=newLines;this.lines[t]=first;if(rest.length)this.lines.splice(t+1,0,...rest);}            
+            insertAfter(anchor,newLines,off=0){newLines=toLines(newLines);const{a}=this._res(anchor);const pos=a+1+off;this._assert(pos,true);this.lines.splice(pos,0,...newLines);}            
+            insertBefore(anchor,newLines,off=0){newLines=toLines(newLines);const{a}=this._res(anchor);const pos=a+off;this._assert(pos,true);this.lines.splice(pos,0,...newLines);}            
+            replaceLine(anchor,content,off=0,match=null,origHash=null){const{t}=this._res(anchor,off);const old=this.lines[t];if(match&&!new RegExp(match).test(old))throw new Error('match fail');if(origHash&&sha6(old)!==origHash)throw new Error('hash mismatch');this.lines[t]=content;}            
+            deleteBlock(anchor,tail=null,count=null){const s=this._find(anchor);let del;if(tail){del=this._find(tail,s)+1-s;}else if(count!=null){del=count;}else throw new Error('need tail/count');if(del<=0)throw new Error('bad del');this.lines.splice(s,del);}            
+            replaceBlock(anchor,newLines,tail){newLines=toLines(newLines);const s=this._find(anchor);const e=this._find(tail,s)+1;if(e<=s)throw new Error('bad range');this.lines.splice(s,e-s,...newLines);}            
+            applyOps(ops){for(const op of ops){if(!op||!op.op){console.warn('跳过未知操作对象',op);continue;}switch(op.op){case 'insert_at_anchor':this.insertAtAnchor(op.anchor,op.new,op.offset||0);break;case 'insert_after':this.insertAfter(op.anchor,op.new,op.offset||0);break;case 'insert_before':this.insertBefore(op.anchor,op.new,op.offset||0);break;case 'replace_line':this.replaceLine(op.anchor,op.content??(Array.isArray(op.new)?op.new[0]:op.new),op.offset||0,op.match,op.orig_hash);break;case 'delete_block':this.deleteBlock(op.anchor,op.tail_anchor,op.count);break;case 'replace_block':this.replaceBlock(op.anchor,op.new,op.tail_anchor);break;default:console.warn('未知操作类型,已忽略:',op.op,op);}}
+                return this.lines;}
         }
 
-        // =============== GPT Prompt & API ===============
-        const ANCHOR_PROTOCOL = `你是精确的增量编辑 Patch 应用器助手。严格遵循锚点定位规则：\n\n核心原则：\n1. 锚点必须精确匹配现有代码行\n2. offset 参数始终以锚点行为基准 (0=本行, +1=下一行, -1=上一行)\n3. 所有定位基于正则匹配, 不使用行号\n\n支持操作: insert_at_anchor / insert_after / insert_before / replace_line / delete_block / replace_block\n\n仅返回 JSON 数组, 不要其它文本.`;
+        // =============== Prompt 协议 & API ===============
+        const ANCHOR_PROTOCOL=`你是精确的增量编辑 Patch 应用器助手。严格遵循锚点定位规则：\n\n核心原则：\n1. 锚点必须精确匹配现有代码行\n2. offset 参数始终以锚点行为基准 (0=本行, +1=下一行, -1=上一行)\n3. 所有定位基于正则匹配, 不使用行号\n\n支持操作: insert_at_anchor / insert_after / insert_before / replace_line / delete_block / replace_block\n\n仅返回 JSON 数组, 不要其它文本.`;
 
         async function generatePatch(userNeed,codeLines){
-            const prompt = `${ANCHOR_PROTOCOL}\n\n用户需求: ${userNeed}\n\n当前代码:\n${codeLines.map((l,i)=>`${i}:${l}`).join('\n')}\n\n请输出 JSON:`;
-            const res = await fetch(`${apiSettings.baseUrl}/chat/completions`,{
-                method:'POST',
-                headers:{'Content-Type':'application/json','Authorization':`Bearer ${apiSettings.apiKey}`},
-                body:JSON.stringify({model:apiSettings.model,messages:[{role:'user',content:prompt}],temperature:0,max_tokens:2048})
-            });
-            if(!res.ok) throw new Error(res.statusText);
+            const prompt=`${ANCHOR_PROTOCOL}\n\n用户需求: ${userNeed}\n\n当前代码:\n${codeLines.map((l,i)=>`${i}:${l}`).join('\n')}\n\n请输出 JSON:`;
+            const res=await fetch(`${apiSettings.baseUrl}/chat/completions`,{method:'POST',headers:{'Content-Type':'application/json','Authorization':`Bearer ${apiSettings.apiKey}`},body:JSON.stringify({model:apiSettings.model,messages:[{role:'user',content:prompt}],temperature:0,max_tokens:2048})});
+            if(!res.ok)throw new Error(res.statusText);
             const data=await res.json();
             const txt=data.choices[0].message.content.trim();
-            const json=JSON.parse(txt.match(/\[[\s\S]*\]/)?.[0]||txt);
-            return json;
+            return JSON.parse(txt.match(/\[[\s\S]*\]/)?.[0]||txt);
+        }
+
+        /* -------- 规范化 GPT 返回的操作 -------- */
+        function normalizeOperations(raw){
+            let arr=Array.isArray(raw)?raw:(raw.operations??raw.ops??[]);
+            if(!Array.isArray(arr)) return [];
+            return arr.map(it=>{
+                if(it.op===undefined){it.op=it.operation??it.op_type??it.type;}
+                return it;
+            }).filter(it=>it&&it.op);
         }
 
         // =============== UI / 状态 ===============
@@ -236,66 +179,42 @@
         let isResizing=false;
         let apiSettings={model:'gpt-4o',apiKey:'',baseUrl:'https://api.openai.com/v1'};
 
-        document.addEventListener('DOMContentLoaded',()=>{
-            loadSettings();
-            setupResizer();
-            updateVersionInfo();
-        });
+        document.addEventListener('DOMContentLoaded',()=>{loadSettings();setupResizer();updateVersionInfo();});
 
-        function setupResizer(){
-            const res=document.getElementById('resizer');
-            const left=document.querySelector('.left-panel');
-            const right=document.querySelector('.right-panel');
-            res.onmousedown=e=>{ isResizing=true; const cont=document.querySelector('.main-container'); const rect=cont.getBoundingClientRect(); const move=m=>{ if(!isResizing)return; const pct=((m.clientX-rect.left)/rect.width)*100; if(pct>15&&pct<85){ left.style.width=pct+'%'; right.style.width=(100-pct)+'%'; } }; const up=()=>{ isResizing=false; window.removeEventListener('mousemove',move); window.removeEventListener('mouseup',up); }; window.addEventListener('mousemove',move); window.addEventListener('mouseup',up); e.preventDefault(); };
-        }
+        function setupResizer(){const res=document.getElementById('resizer');const left=document.querySelector('.left-panel');const right=document.querySelector('.right-panel');res.onmousedown=e=>{isResizing=true;const cont=document.querySelector('.main-container');const rect=cont.getBoundingClientRect();const move=m=>{if(!isResizing)return;const pct=((m.clientX-rect.left)/rect.width)*100;if(pct>15&&pct<85){left.style.width=pct+'%';right.style.width=100-pct+'%';}};const up=()=>{isResizing=false;window.removeEventListener('mousemove',move);window.removeEventListener('mouseup',up);};window.addEventListener('mousemove',move);window.addEventListener('mouseup',up);e.preventDefault();};}
 
         async function processCode(){
             const input=document.getElementById('inputCode').value;
             const need=document.getElementById('requestInput').value;
-            if(!input.trim()) return setStatus('请输入代码','error');
-            if(!need.trim())  return setStatus('请输入编辑需求','error');
-            if(!apiSettings.apiKey) { openSettings(); return setStatus('请先设置API密钥','error'); }
-            setStatus('处理中...',''); document.body.classList.add('loading');
+            if(!input.trim())return setStatus('请输入代码','error');
+            if(!need.trim())return setStatus('请输入编辑需求','error');
+            if(!apiSettings.apiKey){openSettings();return setStatus('请先设置API密钥','error');}
+            setStatus('处理中...');document.body.classList.add('loading');
             try{
-                const ops=await generatePatch(need,toLines(input));
+                const rawOps=await generatePatch(need,toLines(input));
+                const ops=normalizeOperations(rawOps);
+                if(!ops.length)throw new Error('模型未返回有效操作');
                 const newCode=new AnchorPatchApplier(input).applyOps(ops).join('\n');
-                codeVersions.push(newCode); currentVersionIndex=codeVersions.length-1;
+                codeVersions.push(newCode);currentVersionIndex=codeVersions.length-1;
                 document.getElementById('outputCode').value=newCode;
-                updateVersionInfo(); setStatus(`已应用${ops.length}个操作`,'success');
-            }catch(err){ console.error(err); setStatus('处理失败:'+err.message,'error'); }
-            finally{ document.body.classList.remove('loading'); }
+                updateVersionInfo();setStatus(`已应用 ${ops.length} 个操作`,'success');
+            }catch(err){console.error(err);setStatus('处理失败:'+err.message,'error');}
+            finally{document.body.classList.remove('loading');}
         }
 
-        // ===== 版本控制 & 辅助 =====
-        function previousVersion(){ if(currentVersionIndex>0){ currentVersionIndex--; document.getElementById('outputCode').value=codeVersions[currentVersionIndex]; updateVersionInfo(); } }
-        function nextVersion(){ if(currentVersionIndex<codeVersions.length-1){ currentVersionIndex++; document.getElementById('outputCode').value=codeVersions[currentVersionIndex]; updateVersionInfo(); } }
-        function updateVersionInfo(){ document.getElementById('versionInfo').textContent=`版本 ${currentVersionIndex+1}/${codeVersions.length}`; }
-        function copyCode(type){ const ta=document.getElementById(type==='input'?'inputCode':'outputCode'); navigator.clipboard.writeText(ta.value).then(()=>setStatus('已复制','success')); }
-        function clearRequest(){ document.getElementById('requestInput').value=''; }
-        function setStatus(msg,cls=''){ const el=document.getElementById('statusText'); el.textContent=msg; el.className=cls; }
+        /* -------- 版本 / 工具 -------- */
+        function previousVersion(){if(currentVersionIndex>0){currentVersionIndex--;document.getElementById('outputCode').value=codeVersions[currentVersionIndex];updateVersionInfo();}}
+        function nextVersion(){if(currentVersionIndex<codeVersions.length-1){currentVersionIndex++;document.getElementById('outputCode').value=codeVersions[currentVersionIndex];updateVersionInfo();}}
+        function updateVersionInfo(){document.getElementById('versionInfo').textContent=`版本 ${currentVersionIndex+1}/${codeVersions.length}`;}
+        function copyCode(type){const ta=document.getElementById(type==='input'?'inputCode':'outputCode');navigator.clipboard.writeText(ta.value).then(()=>setStatus('已复制','success'));}
+        function clearRequest(){document.getElementById('requestInput').value='';}
+        function setStatus(msg,cls=''){const el=document.getElementById('statusText');el.textContent=msg;el.className=cls;}
 
-        // ===== 设置面板 =====
-        function openSettings(){
-            document.getElementById('settingsModal').style.display='block';
-            document.getElementById('modelSelect').value=apiSettings.model;
-            document.getElementById('apiKey').value=apiSettings.apiKey;
-            document.getElementById('baseUrl').value=apiSettings.baseUrl;
-        }
-        function closeSettings(){ document.getElementById('settingsModal').style.display='none'; }
-        function saveSettings(){
-            apiSettings.model=document.getElementById('modelSelect').value;
-            apiSettings.apiKey=document.getElementById('apiKey').value.trim();
-            apiSettings.baseUrl=document.getElementById('baseUrl').value.trim()||'https://api.openai.com/v1';
-            localStorage.setItem(STORAGE_KEY,JSON.stringify(apiSettings));
-            document.getElementById('modelInfo').textContent='当前模型: '+apiSettings.model;
-            closeSettings();
-            setStatus('设置已保存','success');
-        }
-        function loadSettings(){
-            const s=localStorage.getItem(STORAGE_KEY);
-            if(s){ try{ apiSettings=JSON.parse(s);}catch{} }
-            document.getElementById('modelInfo').textContent='当前模型: '+apiSettings.model;
-        }
+        /* -------- 设置面板 -------- */
+        function openSettings(){document.getElementById('settingsModal').style.display='block';document.getElementById('modelSelect').value=apiSettings.model;document.getElementById('apiKey').value=apiSettings.apiKey;document.getElementById('baseUrl').value=apiSettings.baseUrl;}
+        function closeSettings(){document.getElementById('settingsModal').style.display='none';}
+        function saveSettings(){apiSettings.model=document.getElementById('modelSelect').value;apiSettings.apiKey=document.getElementById('apiKey').value.trim();apiSettings.baseUrl=document.getElementById('baseUrl').value.trim()||'https://api.openai.com/v1';localStorage.setItem(STORAGE_KEY,JSON.stringify(apiSettings));document.getElementById('modelInfo').textContent='当前模型: '+apiSettings.model;closeSettings();setStatus('设置已保存','success');}
+        function loadSettings(){try{const s=localStorage.getItem(STORAGE_KEY);if(s)apiSettings=JSON.parse(s);}catch{}document.getElementById('modelInfo').textContent='当前模型: '+apiSettings.model;}
     </script>
 </body>
 </html>

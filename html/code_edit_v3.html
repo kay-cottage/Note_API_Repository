@@ -1,0 +1,821 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI代码编辑器</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: #1a1a1a;
+            color: #ffffff;
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .header {
+            background: #2d2d2d;
+            padding: 10px 20px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-bottom: 1px solid #444;
+        }
+
+        .header h1 {
+            color: #61dafb;
+            font-size: 1.5em;
+        }
+
+        .header-controls {
+            display: flex;
+            gap: 10px;
+        }
+
+        .btn {
+            background: #4a90e2;
+            color: white;
+            border: none;
+            padding: 8px 16px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 14px;
+            transition: background 0.3s;
+        }
+
+        .btn:hover {
+            background: #357abd;
+        }
+
+        .btn.secondary {
+            background: #6c757d;
+        }
+
+        .btn.secondary:hover {
+            background: #5a6268;
+        }
+
+        .main-container {
+            flex: 1;
+            display: flex;
+            height: calc(100vh - 60px);
+        }
+
+        .left-panel {
+            width: 50%;
+            background: #252526;
+            border-right: 1px solid #444;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .right-panel {
+            width: 50%;
+            background: #1e1e1e;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .resizer {
+            width: 5px;
+            background: #444;
+            cursor: col-resize;
+            transition: background 0.3s;
+        }
+
+        .resizer:hover {
+            background: #61dafb;
+        }
+
+        .panel-header {
+            background: #2d2d2d;
+            padding: 10px;
+            border-bottom: 1px solid #444;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .panel-title {
+            font-weight: bold;
+            color: #61dafb;
+        }
+
+        .code-editor {
+            flex: 1;
+            font-family: 'Consolas', 'Monaco', monospace;
+            font-size: 14px;
+            background: #1e1e1e;
+            color: #d4d4d4;
+            border: none;
+            padding: 15px;
+            resize: none;
+            outline: none;
+            line-height: 1.5;
+        }
+
+        .request-area {
+            height: 120px;
+            background: #252526;
+            border-top: 1px solid #444;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .request-header {
+            background: #2d2d2d;
+            padding: 8px 10px;
+            border-bottom: 1px solid #444;
+            font-size: 12px;
+            color: #ccc;
+        }
+
+        .request-input {
+            flex: 1;
+            background: #1e1e1e;
+            color: #d4d4d4;
+            border: none;
+            padding: 10px;
+            font-family: inherit;
+            font-size: 14px;
+            resize: none;
+            outline: none;
+        }
+
+        .request-controls {
+            background: #2d2d2d;
+            padding: 8px 10px;
+            border-top: 1px solid #444;
+            display: flex;
+            gap: 10px;
+        }
+
+        .version-controls {
+            display: flex;
+            gap: 5px;
+        }
+
+        .version-btn {
+            background: #3c3c3c;
+            color: #ccc;
+            border: none;
+            padding: 4px 8px;
+            border-radius: 3px;
+            cursor: pointer;
+            font-size: 12px;
+        }
+
+        .version-btn:hover {
+            background: #4a4a4a;
+        }
+
+        .version-btn.active {
+            background: #4a90e2;
+            color: white;
+        }
+
+        .modal {
+            display: none;
+            position: fixed;
+            z-index: 1000;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.5);
+        }
+
+        .modal-content {
+            background-color: #2d2d2d;
+            margin: 10% auto;
+            padding: 20px;
+            border-radius: 8px;
+            width: 500px;
+            max-width: 90%;
+        }
+
+        .modal-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+        }
+
+        .modal-title {
+            color: #61dafb;
+            font-size: 1.2em;
+        }
+
+        .close {
+            color: #aaa;
+            font-size: 28px;
+            font-weight: bold;
+            cursor: pointer;
+        }
+
+        .close:hover {
+            color: #fff;
+        }
+
+        .form-group {
+            margin-bottom: 15px;
+        }
+
+        .form-group label {
+            display: block;
+            margin-bottom: 5px;
+            color: #ccc;
+        }
+
+        .form-group input,
+        .form-group select {
+            width: 100%;
+            padding: 8px;
+            background: #1e1e1e;
+            color: #d4d4d4;
+            border: 1px solid #444;
+            border-radius: 4px;
+            font-size: 14px;
+        }
+
+        .form-group input:focus,
+        .form-group select:focus {
+            outline: none;
+            border-color: #61dafb;
+        }
+
+        .status-bar {
+            background: #2d2d2d;
+            padding: 5px 10px;
+            border-top: 1px solid #444;
+            font-size: 12px;
+            color: #ccc;
+            display: flex;
+            justify-content: space-between;
+        }
+
+        .loading {
+            opacity: 0.6;
+            pointer-events: none;
+        }
+
+        .error {
+            color: #ff6b6b;
+        }
+
+        .success {
+            color: #51cf66;
+        }
+
+        .copy-btn {
+            background: transparent;
+            border: 1px solid #444;
+            color: #ccc;
+            padding: 4px 8px;
+            border-radius: 3px;
+            cursor: pointer;
+            font-size: 12px;
+        }
+
+        .copy-btn:hover {
+            background: #444;
+        }
+
+        .debug-panel {
+            background: #2d2d2d;
+            border-top: 1px solid #444;
+            padding: 10px;
+            font-size: 12px;
+            color: #ccc;
+            max-height: 200px;
+            overflow-y: auto;
+        }
+
+        .debug-toggle {
+            background: #3c3c3c;
+            color: #ccc;
+            border: none;
+            padding: 4px 8px;
+            border-radius: 3px;
+            cursor: pointer;
+            font-size: 12px;
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>AI代码编辑器</h1>
+        <div class="header-controls">
+            <button class="btn secondary" onclick="openSettings()">API设置</button>
+            <button class="btn" onclick="processCode()">执行编辑</button>
+            <button class="debug-toggle" onclick="toggleDebug()">调试</button>
+        </div>
+    </div>
+
+    <div class="main-container">
+        <div class="left-panel">
+            <div class="panel-header">
+                <span class="panel-title">输入代码</span>
+                <button class="copy-btn" onclick="copyCode('input')">复制</button>
+            </div>
+            <textarea class="code-editor" id="inputCode" placeholder="在此输入您的代码..."></textarea>
+            <div class="request-area">
+                <div class="request-header">编辑需求</div>
+                <textarea class="request-input" id="requestInput" placeholder="请描述您希望如何修改代码..."></textarea>
+                <div class="request-controls">
+                    <button class="btn" onclick="processCode()">应用修改</button>
+                    <button class="btn secondary" onclick="clearRequest()">清空</button>
+                </div>
+            </div>
+        </div>
+
+        <div class="resizer" id="resizer"></div>
+
+        <div class="right-panel">
+            <div class="panel-header">
+                <span class="panel-title">输出代码</span>
+                <div class="version-controls">
+                    <button class="version-btn" onclick="previousVersion()">◀</button>
+                    <span id="versionInfo">版本 1/1</span>
+                    <button class="version-btn" onclick="nextVersion()">▶</button>
+                    <button class="copy-btn" onclick="copyCode('output')">复制</button>
+                </div>
+            </div>
+            <textarea class="code-editor" id="outputCode" placeholder="修改后的代码将显示在这里..."></textarea>
+            <div class="debug-panel" id="debugPanel" style="display: none;">
+                <div style="margin-bottom: 10px; font-weight: bold;">调试信息:</div>
+                <div id="debugContent"></div>
+            </div>
+        </div>
+    </div>
+
+    <div class="status-bar">
+        <span id="statusText">就绪</span>
+        <span id="modelInfo">当前模型: GPT-4</span>
+    </div>
+
+    <!-- API设置模态框 -->
+    <div id="settingsModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2 class="modal-title">API设置</h2>
+                <span class="close" onclick="closeSettings()">&times;</span>
+            </div>
+            <div class="form-group">
+                <label for="modelSelect">选择模型</label>
+                <select id="modelSelect">
+                    <option value="gpt-4o">OpenAI GPT-4o</option>
+                    <option value="gpt-4o-mini">OpenAI GPT-4o-mini</option>
+                    <option value="gpt-4">OpenAI GPT-4</option>
+                    <option value="gpt-3.5-turbo">OpenAI GPT-3.5 Turbo</option>
+                    <option value="deepseek-coder">DeepSeek Coder</option>
+                    <option value="deepseek-chat">DeepSeek Chat</option>
+                    <option value="gemini-pro">Google Gemini Pro</option>
+                    <option value="claude-3-sonnet">Anthropic Claude 3 Sonnet</option>
+                </select>
+            </div>
+            <div class="form-group">
+                <label for="apiKey">API Key</label>
+                <input type="password" id="apiKey" placeholder="输入您的API密钥">
+            </div>
+            <div class="form-group">
+                <label for="baseUrl">API基础URL</label>
+                <input type="text" id="baseUrl" placeholder="https://api.openai.com/v1">
+            </div>
+            <div class="form-group">
+                <button class="btn" onclick="saveSettings()">保存设置</button>
+                <button class="btn secondary" onclick="closeSettings()">取消</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // 全局变量
+        let codeVersions = [];
+        let currentVersionIndex = 0;
+        let isResizing = false;
+        let debugMode = false;
+        let apiSettings = {
+            model: 'gpt-4o',
+            apiKey: '',
+            baseUrl: 'https://api.openai.com/v1'
+        };
+
+        // 调试日志
+        function debugLog(message, data = null) {
+            if (debugMode) {
+                const debugContent = document.getElementById('debugContent');
+                const timestamp = new Date().toLocaleTimeString();
+                const logEntry = document.createElement('div');
+                logEntry.innerHTML = `<strong>[${timestamp}]</strong> ${message}`;
+                if (data) {
+                    logEntry.innerHTML += `<br><pre style="background: #1e1e1e; padding: 5px; margin: 5px 0; border-radius: 3px;">${JSON.stringify(data, null, 2)}</pre>`;
+                }
+                debugContent.appendChild(logEntry);
+                debugContent.scrollTop = debugContent.scrollHeight;
+            }
+        }
+
+        // 切换调试模式
+        function toggleDebug() {
+            debugMode = !debugMode;
+            const debugPanel = document.getElementById('debugPanel');
+            debugPanel.style.display = debugMode ? 'block' : 'none';
+            if (debugMode) {
+                debugLog('调试模式已启用');
+            }
+        }
+
+        // SHA6哈希函数
+        function sha6(text) {
+            return btoa(text).substring(0, 6);
+        }
+
+        // 改进的锚点驱动补丁应用器
+        class AnchorPatchApplier {
+            constructor(lines) {
+                this.lines = Array.isArray(lines) ? [...lines] : lines.split('\n');
+                debugLog('初始化 AnchorPatchApplier', { totalLines: this.lines.length });
+            }
+
+            // 查找锚点位置，支持多种匹配方式
+            _find(pattern, start = 0) {
+                debugLog(`查找锚点: ${pattern}, 起始位置: ${start}`);
+                
+                // 尝试直接字符串匹配
+                for (let idx = start; idx < this.lines.length; idx++) {
+                    if (this.lines[idx].includes(pattern)) {
+                        debugLog(`直接匹配找到锚点在第 ${idx} 行: ${this.lines[idx]}`);
+                        return idx;
+                    }
+                }
+                
+                // 尝试正则表达式匹配
+                try {
+                    const regex = new RegExp(pattern);
+                    for (let idx = start; idx < this.lines.length; idx++) {
+                        if (regex.test(this.lines[idx])) {
+                            debugLog(`正则匹配找到锚点在第 ${idx} 行: ${this.lines[idx]}`);
+                            return idx;
+                        }
+                    }
+                } catch (e) {
+                    debugLog(`正则表达式无效: ${pattern}`, e);
+                }
+                
+                // 尝试模糊匹配
+                const cleanPattern = pattern.replace(/[\^\$\[\]\\]/g, '').trim();
+                for (let idx = start; idx < this.lines.length; idx++) {
+                    const cleanLine = this.lines[idx].trim();
+                    if (cleanLine.includes(cleanPattern)) {
+                        debugLog(`模糊匹配找到锚点在第 ${idx} 行: ${this.lines[idx]}`);
+                        return idx;
+                    }
+                }
+                
+                throw new Error(`anchor '${pattern}' not found in lines ${start} to ${this.lines.length - 1}`);
+            }
+
+            // 在锚点位置插入新内容（替换锚点行）
+            insertAtAnchor(anchor, newLines, offset = 0) {
+                const pos = this._find(anchor) + offset;
+                debugLog(`insertAtAnchor: 位置 ${pos}, 偏移 ${offset}`, { anchor, newLines });
+                
+                // 确保 newLines 是数组
+                const linesToInsert = Array.isArray(newLines) ? newLines : [newLines];
+                
+                // 替换指定位置的行
+                this.lines.splice(pos, 1, ...linesToInsert);
+                debugLog(`插入完成，当前总行数: ${this.lines.length}`);
+            }
+
+            // 在锚点之后插入新内容
+            insertAfter(anchor, newLines, offset = 0) {
+                const pos = this._find(anchor) + 1 + offset;
+                debugLog(`insertAfter: 位置 ${pos}, 偏移 ${offset}`, { anchor, newLines });
+                
+                // 确保 newLines 是数组
+                const linesToInsert = Array.isArray(newLines) ? newLines : [newLines];
+                
+                this.lines.splice(pos, 0, ...linesToInsert);
+                debugLog(`插入完成，当前总行数: ${this.lines.length}`);
+            }
+
+            // 在锚点之前插入新内容
+            insertBefore(anchor, newLines, offset = 0) {
+                const pos = this._find(anchor) + offset;
+                debugLog(`insertBefore: 位置 ${pos}, 偏移 ${offset}`, { anchor, newLines });
+                
+                // 确保 newLines 是数组
+                const linesToInsert = Array.isArray(newLines) ? newLines : [newLines];
+                
+                this.lines.splice(pos, 0, ...linesToInsert);
+                debugLog(`插入完成，当前总行数: ${this.lines.length}`);
+            }
+
+            // 替换锚点指定的行
+            replaceLine(anchor, content, offset = 0, match = null, origHash = null) {
+                const idx = this._find(anchor) + offset;
+                const old = this.lines[idx];
+                
+                debugLog(`replaceLine: 第 ${idx} 行`, { anchor, content, old });
+                
+                // 验证匹配条件
+                if (match && !new RegExp(match).test(old)) {
+                    throw new Error(`match check failed for line: ${old}`);
+                }
+                if (origHash && sha6(old) !== origHash) {
+                    throw new Error(`hash check failed for line: ${old}`);
+                }
+                
+                this.lines[idx] = content;
+                debugLog(`替换完成: ${old} -> ${content}`);
+            }
+
+            // 删除从锚点开始的代码块
+            deleteBlock(anchor, tailAnchor = null, count = null) {
+                const startIdx = this._find(anchor);
+                let endIdx;
+                
+                debugLog(`deleteBlock: 起始位置 ${startIdx}`, { anchor, tailAnchor, count });
+                
+                if (tailAnchor) {
+                    endIdx = this._find(tailAnchor, startIdx + 1) + 1;
+                } else if (count !== null) {
+                    endIdx = startIdx + count;
+                } else {
+                    throw new Error('delete_block requires tail_anchor or count');
+                }
+                
+                const deletedLines = this.lines.slice(startIdx, endIdx);
+                this.lines.splice(startIdx, endIdx - startIdx);
+                debugLog(`删除完成，删除了 ${deletedLines.length} 行`, deletedLines);
+            }
+
+            // 替换从锚点到tail_anchor的代码块
+            replaceBlock(anchor, newLines, tailAnchor) {
+                const startIdx = this._find(anchor);
+                const endIdx = this._find(tailAnchor, startIdx + 1) + 1;
+                
+                debugLog(`replaceBlock: ${startIdx} 到 ${endIdx}`, { anchor, tailAnchor, newLines });
+                
+                // 确保 newLines 是数组
+                const linesToInsert = Array.isArray(newLines) ? newLines : [newLines];
+                
+                const replacedLines = this.lines.slice(startIdx, endIdx);
+                this.lines.splice(startIdx, endIdx - startIdx, ...linesToInsert);
+                debugLog(`替换完成，替换了 ${replacedLines.length} 行`, { replaced: replacedLines, inserted: linesToInsert });
+            }
+
+            // 应用操作列表
+            applyOps(ops) {
+                debugLog('开始应用操作', ops);
+                
+                for (let i = 0; i < ops.length; i++) {
+                    const op = ops[i];
+                    const opType = op.op;
+                    
+                    debugLog(`应用操作 ${i + 1}/${ops.length}: ${opType}`, op);
+                    
+                    try {
+                        switch (opType) {
+                            case 'insert_at_anchor':
+                                this.insertAtAnchor(op.anchor, op.new, op.offset || 0);
+                                break;
+                            case 'insert_after':
+                                this.insertAfter(op.anchor, op.new, op.offset || 0);
+                                break;
+                            case 'insert_before':
+                                this.insertBefore(op.anchor, op.new, op.offset || 0);
+                                break;
+                            case 'replace_line':
+                                // 处理 content 和 new 字段
+                                let content = op.content;
+                                if (content === undefined && op.new !== undefined) {
+                                    const newValue = op.new;
+                                    if (Array.isArray(newValue) && newValue.length > 0) {
+                                        content = newValue[0];
+                                    } else if (typeof newValue === 'string') {
+                                        content = newValue;
+                                    }
+                                }
+                                if (content === undefined) {
+                                    throw new Error("replace_line missing 'content' or 'new'");
+                                }
+                                this.replaceLine(
+                                    op.anchor,
+                                    content,
+                                    op.offset || 0,
+                                    op.match,
+                                    op.orig_hash
+                                );
+                                break;
+                            case 'delete_block':
+                                this.deleteBlock(op.anchor, op.tail_anchor, op.count);
+                                break;
+                            case 'replace_block':
+                                this.replaceBlock(op.anchor, op.new, op.tail_anchor);
+                                break;
+                            default:
+                                throw new Error(`unknown operation: ${opType}`);
+                        }
+                        debugLog(`操作 ${opType} 成功完成`);
+                    } catch (error) {
+                        debugLog(`操作 ${opType} 失败`, error);
+                        throw new Error(`Error applying operation ${opType}: ${error.message}`);
+                    }
+                }
+                
+                debugLog('所有操作应用完成', { finalLines: this.lines.length });
+                return this.lines;
+            }
+        }
+
+        // 改进的锚点协议提示词
+        const ANCHOR_PROTOCOL = `你是增量编辑 Patch 应用器助手，只返回严格 JSON 格式，不要任何解释。
+
+重要规则：
+1. 禁止使用行号字段(line/start/end)，所有定位仅靠 anchor 正则或字符串匹配
+2. anchor 可以是正则表达式或直接字符串匹配
+3. 支持的操作：insert_at_anchor, insert_after, insert_before, replace_line, delete_block, replace_block
+4. new 字段必须是字符串数组，即使是单行也要用数组格式
+
+操作说明：
+- insert_at_anchor: 在anchor位置插入内容（替换anchor行）
+- insert_after: 在anchor之后插入内容  
+- insert_before: 在anchor之前插入内容
+- replace_line: 替换anchor指定的行
+- delete_block: 删除从anchor开始的代码块
+- replace_block: 替换从anchor到tail_anchor的代码块
+
+返回格式：{"operations": [{"op": "操作名", "anchor": "锚点", "new": ["新内容行1", "新内容行2"]}]}`;
+
+        // 生成补丁
+        async function generatePatchWithGpt(userRequest, codeLines, model = 'gpt-4o') {
+            const prompt = `${ANCHOR_PROTOCOL}
+
+用户需求：${userRequest}
+
+当前代码：
+${codeLines.map((line, idx) => `${idx + 1}: ${line}`).join('\n')}
+
+请分析代码并返回JSON格式的操作指令。`;
+
+            debugLog('发送请求到 GPT', { userRequest, codeLines: codeLines.length });
+
+            try {
+                const response = await fetch(`${apiSettings.baseUrl}/chat/completions`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${apiSettings.apiKey}`
+                    },
+                    body: JSON.stringify({
+                        model: apiSettings.model,
+                        messages: [{ role: 'user', content: prompt }],
+                        response_format: { type: 'json_object' },
+                        temperature: 0
+                    })
+                });
+
+                if (!response.ok) {
+                    const errorText = await response.text();
+                    throw new Error(`API请求失败: ${response.status} ${response.statusText} - ${errorText}`);
+                }
+
+                const data = await response.json();
+                const raw = data.choices[0].message.content.trim();
+                
+                debugLog('GPT 原始响应', raw);
+                
+                let parsedData;
+                try {
+                    parsedData = JSON.parse(raw);
+                } catch (e) {
+                    debugLog('JSON 解析失败', e);
+                    // 尝试清理和修复 JSON
+                    const cleanedRaw = raw.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim();
+                    try {
+                        parsedData = JSON.parse(cleanedRaw);
+                    } catch (e2) {
+                        throw new Error(`Invalid JSON response: ${raw}`);
+                    }
+                }
+                
+                debugLog('解析后的数据', parsedData);
+                
+                // 提取操作数组
+                let ops;
+                if (parsedData.operations !== undefined) {
+                    ops = parsedData.operations;
+                } else if (Array.isArray(parsedData)) {
+                    ops = parsedData;
+                } else {
+                    throw new Error('GPT response must contain operations array');
+                }
+                
+                if (!Array.isArray(ops)) {
+                    throw new Error('Operations must be an array');
+                }
+                
+                debugLog('提取的操作', ops);
+                return ops;
+                
+            } catch (error) {
+                debugLog('GPT 请求失败', error);
+                throw error;
+            }
+        }
+
+        // 初始化
+        document.addEventListener('DOMContentLoaded', function() {
+            loadSettings();
+            setupResizer();
+            codeVersions.push('');
+            updateVersionInfo();
+            debugLog('应用初始化完成');
+        });
+
+        // 拖拽调整面板大小
+        function setupResizer() {
+            const resizer = document.getElementById('resizer');
+            const leftPanel = document.querySelector('.left-panel');
+            const rightPanel = document.querySelector('.right-panel');
+            
+            resizer.addEventListener('mousedown', (e) => {
+                isResizing = true;
+                document.addEventListener('mousemove', handleMouseMove);
+                document.addEventListener('mouseup', handleMouseUp);
+                e.preventDefault();
+            });
+
+            function handleMouseMove(e) {
+                if (!isResizing) return;
+                
+                const container = document.querySelector('.main-container');
+                const containerRect = container.getBoundingClientRect();
+                const percentage = ((e.clientX - containerRect.left) / containerRect.width) * 100;
+                
+                if (percentage > 20 && percentage < 80) {
+                    leftPanel.style.width = percentage + '%';
+                    rightPanel.style.width = (100 - percentage) + '%';
+                }
+            }
+
+            function handleMouseUp() {
+                isResizing = false;
+                document.removeEventListener('mousemove', handleMouseMove);
+                document.removeEventListener('mouseup', handleMouseUp);
+            }
+        }
+
+        // 处理代码编辑
+        async function processCode() {
+            const inputCode = document.getElementById('inputCode').value;
+            const request = document.getElementById('requestInput').value;
+            
+            if (!inputCode.trim()) {
+                setStatus('请输入代码', 'error');
+                return;
+            }
+            
+            if (!request.trim()) {
+                setStatus('请输入编辑需求', 'error');
+                return;
+            }
+
+            if (!apiSettings.apiKey) {
+                setStatus('请先设置API密钥', 'error');
+                openSettings();
+                return;
+            }
+
+            setStatus('正在处理...', 'loading');
+            document.body.classList.add('loading');
+
+            try {
+                const codeLines = inputCode.split('\n');
+                debugLog('开始处理代码', { inputLines: codeLines.length, request });
+                
+                const operations = await generatePatchWithGpt(request, codeLines, apiSettings.model);
+                
+                debugLog('获得操作列表', operations);
+                
+                const applier = new AnchorPatchApplier(codeLines);
+                const newLines = applier.applyOps(operations);
+                const newCode = newLines.join('\n');
+                
+                // 添加到版本历史
+                codeVersions.push(newCode);
+                currentVersionIndex = codeVersions.length - 1;
+                
+                document.getElementById('outputCode').value = newCode;
+                updateVersionInfo();
+                setStatus('代码编辑成功', 'success');

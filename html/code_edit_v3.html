@@ -10,7 +10,6 @@
             padding: 0;
             box-sizing: border-box;
         }
-
         body {
             font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
             background: #1a1a1a;
@@ -19,7 +18,6 @@
             display: flex;
             flex-direction: column;
         }
-
         .header {
             background: #2d2d2d;
             padding: 10px 20px;
@@ -28,17 +26,15 @@
             align-items: center;
             border-bottom: 1px solid #444;
         }
-
         .header h1 {
             color: #61dafb;
             font-size: 1.5em;
+            user-select: none;
         }
-
         .header-controls {
             display: flex;
             gap: 10px;
         }
-
         .btn {
             background: #4a90e2;
             color: white;
@@ -49,65 +45,20 @@
             font-size: 14px;
             transition: background 0.3s;
         }
-
-        .btn:hover {
-            background: #357abd;
-        }
-
-        .btn.secondary {
-            background: #6c757d;
-        }
-
-        .btn.secondary:hover {
-            background: #5a6268;
-        }
-
+        .btn:hover { background: #357abd; }
+        .btn.secondary { background: #6c757d; }
+        .btn.secondary:hover { background: #5a6268; }
         .main-container {
             flex: 1;
             display: flex;
             height: calc(100vh - 60px);
         }
-
-        .left-panel {
-            width: 50%;
-            background: #252526;
-            border-right: 1px solid #444;
-            display: flex;
-            flex-direction: column;
-        }
-
-        .right-panel {
-            width: 50%;
-            background: #1e1e1e;
-            display: flex;
-            flex-direction: column;
-        }
-
-        .resizer {
-            width: 5px;
-            background: #444;
-            cursor: col-resize;
-            transition: background 0.3s;
-        }
-
-        .resizer:hover {
-            background: #61dafb;
-        }
-
-        .panel-header {
-            background: #2d2d2d;
-            padding: 10px;
-            border-bottom: 1px solid #444;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-        }
-
-        .panel-title {
-            font-weight: bold;
-            color: #61dafb;
-        }
-
+        .left-panel { width: 50%; background: #252526; border-right: 1px solid #444; display: flex; flex-direction: column; }
+        .right-panel { width: 50%; background: #1e1e1e; display: flex; flex-direction: column; }
+        .resizer { width: 5px; background: #444; cursor: col-resize; transition: background 0.3s; }
+        .resizer:hover { background: #61dafb; }
+        .panel-header { background: #2d2d2d; padding: 10px; border-bottom: 1px solid #444; display: flex; justify-content: space-between; align-items: center; }
+        .panel-title { font-weight: bold; color: #61dafb; }
         .code-editor {
             flex: 1;
             font-family: 'Consolas', 'Monaco', monospace;
@@ -120,23 +71,8 @@
             outline: none;
             line-height: 1.5;
         }
-
-        .request-area {
-            height: 160px;
-            background: #252526;
-            border-top: 1px solid #444;
-            display: flex;
-            flex-direction: column;
-        }
-
-        .request-header {
-            background: #2d2d2d;
-            padding: 8px 10px;
-            border-bottom: 1px solid #444;
-            font-size: 12px;
-            color: #ccc;
-        }
-
+        .request-area { height: 160px; background: #252526; border-top: 1px solid #444; display: flex; flex-direction: column; }
+        .request-header { background: #2d2d2d; padding: 8px 10px; border-bottom: 1px solid #444; font-size: 12px; color: #ccc; }
         .request-input {
             flex: 1;
             background: #1e1e1e;
@@ -149,145 +85,27 @@
             outline: none;
             min-height: 80px;
         }
-
-        .request-controls {
-            background: #2d2d2d;
-            padding: 8px 10px;
-            border-top: 1px solid #444;
-            display: flex;
-            gap: 10px;
-        }
-
-        .version-controls {
-            display: flex;
-            gap: 5px;
-        }
-
-        .version-btn {
-            background: #3c3c3c;
-            color: #ccc;
-            border: none;
-            padding: 4px 8px;
-            border-radius: 3px;
-            cursor: pointer;
-            font-size: 12px;
-        }
-
-        .version-btn:hover {
-            background: #4a4a4a;
-        }
-
-        .version-btn.active {
-            background: #4a90e2;
-            color: white;
-        }
-
-        .modal {
-            display: none;
-            position: fixed;
-            z-index: 1000;
-            left: 0;
-            top: 0;
-            width: 100%;
-            height: 100%;
-            background-color: rgba(0, 0, 0, 0.5);
-        }
-
-        .modal-content {
-            background-color: #2d2d2d;
-            margin: 10% auto;
-            padding: 20px;
-            border-radius: 8px;
-            width: 500px;
-            max-width: 90%;
-        }
-
-        .modal-header {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            margin-bottom: 20px;
-        }
-
-        .modal-title {
-            color: #61dafb;
-            font-size: 1.2em;
-        }
-
-        .close {
-            color: #aaa;
-            font-size: 28px;
-            font-weight: bold;
-            cursor: pointer;
-        }
-
-        .close:hover {
-            color: #fff;
-        }
-
-        .form-group {
-            margin-bottom: 15px;
-        }
-
-        .form-group label {
-            display: block;
-            margin-bottom: 5px;
-            color: #ccc;
-        }
-
-        .form-group input,
-        .form-group select {
-            width: 100%;
-            padding: 8px;
-            background: #1e1e1e;
-            color: #d4d4d4;
-            border: 1px solid #444;
-            border-radius: 4px;
-            font-size: 14px;
-        }
-
-        .form-group input:focus,
-        .form-group select:focus {
-            outline: none;
-            border-color: #61dafb;
-        }
-
-        .status-bar {
-            background: #2d2d2d;
-            padding: 5px 10px;
-            border-top: 1px solid #444;
-            font-size: 12px;
-            color: #ccc;
-            display: flex;
-            justify-content: space-between;
-        }
-
-        .loading {
-            opacity: 0.6;
-            pointer-events: none;
-        }
-
-        .error {
-            color: #ff6b6b;
-        }
-
-        .success {
-            color: #51cf66;
-        }
-
-        .copy-btn {
-            background: transparent;
-            border: 1px solid #444;
-            color: #ccc;
-            padding: 4px 8px;
-            border-radius: 3px;
-            cursor: pointer;
-            font-size: 12px;
-        }
-
-        .copy-btn:hover {
-            background: #444;
-        }
+        .request-controls { background: #2d2d2d; padding: 8px 10px; border-top: 1px solid #444; display: flex; gap: 10px; }
+        .version-controls { display: flex; gap: 5px; }
+        .version-btn { background: #3c3c3c; color: #ccc; border: none; padding: 4px 8px; border-radius: 3px; cursor: pointer; font-size: 12px; }
+        .version-btn:hover { background: #4a4a4a; }
+        .version-btn.active { background: #4a90e2; color: white; }
+        .modal { display: none; position: fixed; z-index: 1000; left: 0; top: 0; width: 100%; height: 100%; background-color: rgba(0,0,0,0.5); }
+        .modal-content { background: #2d2d2d; margin: 10% auto; padding: 20px; border-radius: 8px; width: 500px; max-width: 90%; }
+        .modal-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; }
+        .modal-title { color: #61dafb; font-size: 1.2em; }
+        .close { color: #aaa; font-size: 28px; font-weight: bold; cursor: pointer; }
+        .close:hover { color: #fff; }
+        .form-group { margin-bottom: 15px; }
+        .form-group label { display: block; margin-bottom: 5px; color: #ccc; }
+        .form-group input, .form-group select { width: 100%; padding: 8px; background: #1e1e1e; color: #d4d4d4; border: 1px solid #444; border-radius: 4px; font-size: 14px; }
+        .form-group input:focus, .form-group select:focus { outline: none; border-color: #61dafb; }
+        .status-bar { background: #2d2d2d; padding: 5px 10px; border-top: 1px solid #444; font-size: 12px; color: #ccc; display: flex; justify-content: space-between; }
+        .loading { opacity: .6; pointer-events: none; }
+        .error { color: #ff6b6b; }
+        .success { color: #51cf66; }
+        .copy-btn { background: transparent; border: 1px solid #444; color: #ccc; padding: 4px 8px; border-radius: 3px; cursor: pointer; font-size: 12px; }
+        .copy-btn:hover { background: #444; }
     </style>
 </head>
 <body>
@@ -315,9 +133,7 @@
                 </div>
             </div>
         </div>
-
         <div class="resizer" id="resizer"></div>
-
         <div class="right-panel">
             <div class="panel-header">
                 <span class="panel-title">输出代码</span>
@@ -334,11 +150,11 @@
 
     <div class="status-bar">
         <span id="statusText">就绪</span>
-        <span id="modelInfo">当前模型: GPT-4</span>
+        <span id="modelInfo">当前模型: GPT-4o</span>
     </div>
 
     <!-- API设置模态框 -->
-    <div id="settingsModal" class="modal">
+    <div id="settingsModal" class="modal" onclick="if(event.target===this) closeSettings()">
         <div class="modal-content">
             <div class="modal-header">
                 <h2 class="modal-title">API设置</h2>
@@ -365,7 +181,7 @@
                 <label for="baseUrl">API基础URL</label>
                 <input type="text" id="baseUrl" placeholder="https://api.openai.com/v1">
             </div>
-            <div class="form-group">
+            <div class="form-group" style="display:flex; gap:10px; justify-content:flex-end;">
                 <button class="btn" onclick="saveSettings()">保存设置</button>
                 <button class="btn secondary" onclick="closeSettings()">取消</button>
             </div>
@@ -373,302 +189,113 @@
     </div>
 
     <script>
-        // ====================== 公共工具 =======================
-        function sha6(text) {
-            return btoa(text).substring(0, 6);
+        // =============== 公用工具 ===============
+        const STORAGE_KEY = 'aiCodeEditorSettings_v1';
+        const sha6 = txt => btoa(txt).substring(0,6);
+        const toLines = src => Array.isArray(src)?[...src]:src.split('\n');
+
+        // =============== AnchorPatchApplier (改进版) ===============
+        class AnchorPatchApplier{
+            constructor(source){ this.lines = toLines(source); this.debug=false; }
+            _assert(idx,eq=false){ const lim=eq?this.lines.length:this.lines.length-1; if(idx<0||idx>lim) throw new Error(`index ${idx} OOB`);}            
+            _find(pat,start=0){
+                const rx = (pat instanceof RegExp) ? pat : (/([\^$])/.test(pat)?new RegExp(pat):new RegExp(`^${pat}$`));
+                for(let i=start;i<this.lines.length;i++){ if(rx.test(this.lines[i])) return i; }
+                throw new Error(`anchor '${pat}' not found`);
+            }
+            _res(anchor,offset=0){ const a=typeof anchor==='number'?anchor:this._find(anchor); const t=a+offset; this._assert(t,true); return{a,t}; }
+            insertAtAnchor(anchor,newLines,offset=0){ newLines=toLines(newLines); const{t}=this._res(anchor,offset); this._assert(t); const[first,...rest]=newLines; this.lines[t]=first; if(rest.length) this.lines.splice(t+1,0,...rest); }
+            insertAfter(anchor,newLines,offset=0){ newLines=toLines(newLines); const{a}=this._res(anchor); const pos=a+1+offset; this._assert(pos,true); this.lines.splice(pos,0,...newLines);}            
+            insertBefore(anchor,newLines,offset=0){ newLines=toLines(newLines); const{a}=this._res(anchor); const pos=a+offset; this._assert(pos,true); this.lines.splice(pos,0,...newLines);}            
+            replaceLine(anchor,content,offset=0,match=null,origHash=null){ const{t}=this._res(anchor,offset); this._assert(t); const old=this.lines[t]; if(match&&!new RegExp(match).test(old)) throw new Error('match fail'); if(origHash&&sha6(old)!==origHash) throw new Error('hash mismatch'); this.lines[t]=content; }
+            deleteBlock(anchor,tail=null,count=null){ const s=this._find(anchor); let del; if(tail){ const e=this._find(tail,s)+1; del=e-s; }else if(count!=null){ del=count; } else throw new Error('need tail or count'); if(del<=0) throw new Error('bad del'); this.lines.splice(s,del);}            
+            replaceBlock(anchor,newLines,tail){ newLines=toLines(newLines); const s=this._find(anchor); const e=this._find(tail,s)+1; if(e<=s) throw new Error('bad range'); this.lines.splice(s,e-s,...newLines);}            
+            applyOps(ops){ for(const op of ops){ switch(op.op){ case 'insert_at_anchor': this.insertAtAnchor(op.anchor,op.new,op.offset||0); break; case 'insert_after': this.insertAfter(op.anchor,op.new,op.offset||0); break; case 'insert_before': this.insertBefore(op.anchor,op.new,op.offset||0); break; case 'replace_line': this.replaceLine(op.anchor, op.content ?? (Array.isArray(op.new)?op.new[0]:op.new), op.offset||0, op.match, op.orig_hash); break; case 'delete_block': this.deleteBlock(op.anchor,op.tail_anchor,op.count); break; case 'replace_block': this.replaceBlock(op.anchor,op.new,op.tail_anchor); break; default: throw new Error('unknown op '+op.op); } } return this.lines; }
         }
 
-        function toLineArray(input) {
-            return Array.isArray(input) ? [...input] : input.split('\n');
-        }
+        // =============== GPT Prompt & API ===============
+        const ANCHOR_PROTOCOL = `你是精确的增量编辑 Patch 应用器助手。严格遵循锚点定位规则：\n\n核心原则：\n1. 锚点必须精确匹配现有代码行\n2. offset 参数始终以锚点行为基准 (0=本行, +1=下一行, -1=上一行)\n3. 所有定位基于正则匹配, 不使用行号\n\n支持操作: insert_at_anchor / insert_after / insert_before / replace_line / delete_block / replace_block\n\n仅返回 JSON 数组, 不要其它文本.`;
 
-        // ====================== AnchorPatchApplier =======================
-        /**
-         * 改进版 AnchorPatchApplier：
-         * 1. 统一坐标计算逻辑，确保 offset 始终以锚点行为基准
-         * 2. 对目标位置做越界检查，避免多删 / 多插
-         * 3. insertAtAnchor 在替换多行时，只覆盖目标行，其余行顺序插入，保证行数精确
-         * 4. _find 支持精确或模糊匹配，默认精确整行匹配，避免误命中
-         */
-        class AnchorPatchApplier {
-            constructor(source) {
-                this.lines = toLineArray(source);
-                this.debug = true;
-            }
-
-            // -------- 辅助方法 --------
-            _assertBounds(idx, allowEqual = false) {
-                const limit = allowEqual ? this.lines.length : this.lines.length - 1;
-                if (idx < 0 || idx > limit) {
-                    throw new Error(`Target position ${idx} out of bounds (0~${limit})`);
-                }
-            }
-
-            /**
-             * 统一锚点/偏移解析
-             * @param {string|RegExp} anchor
-             * @param {number} offset
-             */
-            _resolve(anchor, offset = 0) {
-                const anchorPos = typeof anchor === 'number' ? anchor : this._find(anchor);
-                const targetPos = anchorPos + offset;
-                this._assertBounds(targetPos, true);
-                return { anchorPos, targetPos };
-            }
-
-            /**
-             * 默认整行精确匹配；如需自定义请自行在 pattern 中加入 ^ 和 $
-             */
-            _find(pattern, start = 0) {
-                const regex = pattern instanceof RegExp
-                    ? pattern
-                    : /(^\^|\$$)/.test(pattern) // 用户已含 ^ 或 $
-                        ? new RegExp(pattern)
-                        : new RegExp(`^${pattern}$`);
-
-                if (this.debug) console.log(`Looking for [${regex}] from line ${start}`);
-
-                for (let i = start; i < this.lines.length; i++) {
-                    if (regex.test(this.lines[i])) {
-                        if (this.debug) console.log(`Matched at ${i}: ${this.lines[i]}`);
-                        return i;
-                    }
-                }
-                throw new Error(`Anchor '${pattern}' not found starting from ${start}`);
-            }
-
-            // -------- 核心操作 --------
-            insertAtAnchor(anchor, newLines, offset = 0) {
-                newLines = toLineArray(newLines);
-                const { targetPos } = this._resolve(anchor, offset);
-                this._assertBounds(targetPos);
-
-                // 用第一行覆盖，其余行按顺序插入，保证不会错删/多删
-                const [first, ...rest] = newLines;
-                this.lines[targetPos] = first;
-                if (rest.length) this.lines.splice(targetPos + 1, 0, ...rest);
-            }
-
-            insertAfter(anchor, newLines, offset = 0) {
-                newLines = toLineArray(newLines);
-                const { anchorPos } = this._resolve(anchor, 0);
-                const targetPos = anchorPos + 1 + offset;
-                this._assertBounds(targetPos, true);
-                this.lines.splice(targetPos, 0, ...newLines);
-            }
-
-            insertBefore(anchor, newLines, offset = 0) {
-                newLines = toLineArray(newLines);
-                const { anchorPos } = this._resolve(anchor, 0);
-                const targetPos = anchorPos + offset;
-                this._assertBounds(targetPos, true);
-                this.lines.splice(targetPos, 0, ...newLines);
-            }
-
-            replaceLine(anchor, content, offset = 0, match = null, origHash = null) {
-                const { targetPos } = this._resolve(anchor, offset);
-                this._assertBounds(targetPos);
-
-                const oldLine = this.lines[targetPos];
-                if (match && !new RegExp(match).test(oldLine)) {
-                    throw new Error(`Match failed at ${targetPos}: "${oldLine}" !~ /${match}/`);
-                }
-                if (origHash && sha6(oldLine) !== origHash) {
-                    throw new Error(`Hash mismatch at ${targetPos}`);
-                }
-                this.lines[targetPos] = content;
-            }
-
-            deleteBlock(anchor, tailAnchor = null, count = null) {
-                const start = this._find(anchor);
-                let delCount;
-                if (tailAnchor) {
-                    const end = this._find(tailAnchor, start) + 1; // 包含尾行
-                    delCount = end - start;
-                } else if (count !== null) {
-                    delCount = count;
-                } else {
-                    throw new Error('deleteBlock requires tailAnchor or count');
-                }
-                if (delCount <= 0) throw new Error('Invalid delete range');
-                this.lines.splice(start, delCount);
-            }
-
-            replaceBlock(anchor, newLines, tailAnchor) {
-                newLines = toLineArray(newLines);
-                const start = this._find(anchor);
-                const end = this._find(tailAnchor, start) + 1;
-                if (end <= start) throw new Error('Invalid replace range');
-                this.lines.splice(start, end - start, ...newLines);
-            }
-
-            applyOps(ops) {
-                for (let i = 0; i < ops.length; i++) {
-                    const op = ops[i];
-                    const type = op.op;
-                    try {
-                        switch (type) {
-                            case 'insert_at_anchor':
-                                this.insertAtAnchor(op.anchor, op.new, op.offset || 0);
-                                break;
-                            case 'insert_after':
-                                this.insertAfter(op.anchor, op.new, op.offset || 0);
-                                break;
-                            case 'insert_before':
-                                this.insertBefore(op.anchor, op.new, op.offset || 0);
-                                break;
-                            case 'replace_line': {
-                                const content = op.content ?? (Array.isArray(op.new) ? op.new[0] : op.new);
-                                this.replaceLine(op.anchor, content, op.offset || 0, op.match, op.orig_hash);
-                                break;
-                            }
-                            case 'delete_block':
-                                this.deleteBlock(op.anchor, op.tail_anchor, op.count);
-                                break;
-                            case 'replace_block':
-                                this.replaceBlock(op.anchor, op.new, op.tail_anchor);
-                                break;
-                            default:
-                                throw new Error(`Unknown op: ${type}`);
-                        }
-                    } catch (e) {
-                        console.error(`Operation ${i + 1} (${type}) failed`, e, op);
-                        throw e;
-                    }
-                }
-                return this.lines;
-            }
-
-            getDebugInfo() {
-                return {
-                    totalLines: this.lines.length,
-                    head: this.lines.slice(0, 5),
-                    tail: this.lines.slice(-5)
-                };
-            }
-        }
-
-        // ====================== Prompt & API 调用 =======================
-        const ANCHOR_PROTOCOL = `你是精确的增量编辑 Patch 应用器助手。严格遵循锚点定位规则：\n\n核心原则：\n1. 锚点必须精确匹配现有代码行\n2. offset 参数始终以锚点行为基准 (0=本行，+1=下一行，-1=上一行)\n3. 所有定位基于正则匹配，不使用行号\n\n支持的操作：\n- insert_at_anchor (替换锚点行)\n- insert_after\n- insert_before\n- replace_line\n- delete_block\n- replace_block\n\n返回值仅包含 JSON 数组，无其他文本。`;
-
-        async function generatePatchWithGpt(userRequest, codeLines) {
-            const prompt = `${ANCHOR_PROTOCOL}\n\n用户需求：${userRequest}\n\n当前代码：\n${codeLines.map((l, i) => `${i}: ${l}`).join('\n')}\n\n请输出 JSON：`;
-
-            const res = await fetch(`${apiSettings.baseUrl}/chat/completions`, {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'Authorization': `Bearer ${apiSettings.apiKey}`
-                },
-                body: JSON.stringify({
-                    model: apiSettings.model,
-                    messages: [{ role: 'user', content: prompt }],
-                    temperature: 0,
-                    max_tokens: 2048
-                })
+        async function generatePatch(userNeed,codeLines){
+            const prompt = `${ANCHOR_PROTOCOL}\n\n用户需求: ${userNeed}\n\n当前代码:\n${codeLines.map((l,i)=>`${i}:${l}`).join('\n')}\n\n请输出 JSON:`;
+            const res = await fetch(`${apiSettings.baseUrl}/chat/completions`,{
+                method:'POST',
+                headers:{'Content-Type':'application/json','Authorization':`Bearer ${apiSettings.apiKey}`},
+                body:JSON.stringify({model:apiSettings.model,messages:[{role:'user',content:prompt}],temperature:0,max_tokens:2048})
             });
-            if (!res.ok) throw new Error(`${res.status} ${res.statusText}`);
-            const data = await res.json();
-            const raw = data.choices[0].message.content.trim();
-            const jsonMatch = raw.match(/\[[\s\S]*\]/);
-            const jsonStr = jsonMatch ? jsonMatch[0] : raw;
-            return JSON.parse(jsonStr);
+            if(!res.ok) throw new Error(res.statusText);
+            const data=await res.json();
+            const txt=data.choices[0].message.content.trim();
+            const json=JSON.parse(txt.match(/\[[\s\S]*\]/)?.[0]||txt);
+            return json;
         }
 
-        // ====================== UI 逻辑 (保持不变) =======================
-        let codeVersions = [''];
-        let currentVersionIndex = 0;
-        let isResizing = false;
-        let apiSettings = { model: 'gpt-4o', apiKey: '', baseUrl: 'https://api.openai.com/v1' };
+        // =============== UI / 状态 ===============
+        let codeVersions=[''];
+        let currentVersionIndex=0;
+        let isResizing=false;
+        let apiSettings={model:'gpt-4o',apiKey:'',baseUrl:'https://api.openai.com/v1'};
 
-        document.addEventListener('DOMContentLoaded', () => {
+        document.addEventListener('DOMContentLoaded',()=>{
             loadSettings();
             setupResizer();
             updateVersionInfo();
         });
 
-        function setupResizer() {
-            const resizer = document.getElementById('resizer');
-            const left = document.querySelector('.left-panel');
-            const right = document.querySelector('.right-panel');
-            resizer.onmousedown = e => {
-                isResizing = true;
-                const container = document.querySelector('.main-container');
-                const rect = container.getBoundingClientRect();
-                const onMove = m => {
-                    if (!isResizing) return;
-                    const percent = ((m.clientX - rect.left) / rect.width) * 100;
-                    if (percent > 15 && percent < 85) {
-                        left.style.width = percent + '%';
-                        right.style.width = 100 - percent + '%';
-                    }
-                };
-                const onUp = () => {
-                    isResizing = false;
-                    window.removeEventListener('mousemove', onMove);
-                    window.removeEventListener('mouseup', onUp);
-                };
-                window.addEventListener('mousemove', onMove);
-                window.addEventListener('mouseup', onUp);
-                e.preventDefault();
-            };
+        function setupResizer(){
+            const res=document.getElementById('resizer');
+            const left=document.querySelector('.left-panel');
+            const right=document.querySelector('.right-panel');
+            res.onmousedown=e=>{ isResizing=true; const cont=document.querySelector('.main-container'); const rect=cont.getBoundingClientRect(); const move=m=>{ if(!isResizing)return; const pct=((m.clientX-rect.left)/rect.width)*100; if(pct>15&&pct<85){ left.style.width=pct+'%'; right.style.width=(100-pct)+'%'; } }; const up=()=>{ isResizing=false; window.removeEventListener('mousemove',move); window.removeEventListener('mouseup',up); }; window.addEventListener('mousemove',move); window.addEventListener('mouseup',up); e.preventDefault(); };
         }
 
-        async function processCode() {
-            const input = document.getElementById('inputCode').value;
-            const requestText = document.getElementById('requestInput').value;
-            if (!input.trim()) return setStatus('请输入代码', 'error');
-            if (!requestText.trim()) return setStatus('请输入编辑需求', 'error');
-            if (!apiSettings.apiKey) { openSettings(); return setStatus('请先设置API密钥', 'error'); }
-
-            setStatus('处理中...', 'loading');
-            document.body.classList.add('loading');
-
-            try {
-                const operations = await generatePatchWithGpt(requestText, toLineArray(input));
-                const applier = new AnchorPatchApplier(input);
-                const newCode = applier.applyOps(operations).join('\n');
-                codeVersions.push(newCode);
-                currentVersionIndex = codeVersions.length - 1;
-                document.getElementById('outputCode').value = newCode;
-                updateVersionInfo();
-                setStatus(`已应用 ${operations.length} 个操作`, 'success');
-            } catch (e) {
-                console.error(e);
-                setStatus(`处理失败: ${e.message}`, 'error');
-            } finally {
-                document.body.classList.remove('loading');
-            }
+        async function processCode(){
+            const input=document.getElementById('inputCode').value;
+            const need=document.getElementById('requestInput').value;
+            if(!input.trim()) return setStatus('请输入代码','error');
+            if(!need.trim())  return setStatus('请输入编辑需求','error');
+            if(!apiSettings.apiKey) { openSettings(); return setStatus('请先设置API密钥','error'); }
+            setStatus('处理中...',''); document.body.classList.add('loading');
+            try{
+                const ops=await generatePatch(need,toLines(input));
+                const newCode=new AnchorPatchApplier(input).applyOps(ops).join('\n');
+                codeVersions.push(newCode); currentVersionIndex=codeVersions.length-1;
+                document.getElementById('outputCode').value=newCode;
+                updateVersionInfo(); setStatus(`已应用${ops.length}个操作`,'success');
+            }catch(err){ console.error(err); setStatus('处理失败:'+err.message,'error'); }
+            finally{ document.body.classList.remove('loading'); }
         }
 
-        // 版本 & 辅助函数保持不变 ... (省略未改动代码块）
-        function previousVersion() {
-            if (currentVersionIndex > 0) {
-                currentVersionIndex--;
-                document.getElementById('outputCode').value = codeVersions[currentVersionIndex];
-                updateVersionInfo();
-            }
+        // ===== 版本控制 & 辅助 =====
+        function previousVersion(){ if(currentVersionIndex>0){ currentVersionIndex--; document.getElementById('outputCode').value=codeVersions[currentVersionIndex]; updateVersionInfo(); } }
+        function nextVersion(){ if(currentVersionIndex<codeVersions.length-1){ currentVersionIndex++; document.getElementById('outputCode').value=codeVersions[currentVersionIndex]; updateVersionInfo(); } }
+        function updateVersionInfo(){ document.getElementById('versionInfo').textContent=`版本 ${currentVersionIndex+1}/${codeVersions.length}`; }
+        function copyCode(type){ const ta=document.getElementById(type==='input'?'inputCode':'outputCode'); navigator.clipboard.writeText(ta.value).then(()=>setStatus('已复制','success')); }
+        function clearRequest(){ document.getElementById('requestInput').value=''; }
+        function setStatus(msg,cls=''){ const el=document.getElementById('statusText'); el.textContent=msg; el.className=cls; }
+
+        // ===== 设置面板 =====
+        function openSettings(){
+            document.getElementById('settingsModal').style.display='block';
+            document.getElementById('modelSelect').value=apiSettings.model;
+            document.getElementById('apiKey').value=apiSettings.apiKey;
+            document.getElementById('baseUrl').value=apiSettings.baseUrl;
         }
-        function nextVersion() {
-            if (currentVersionIndex < codeVersions.length - 1) {
-                currentVersionIndex++;
-                document.getElementById('outputCode').value = codeVersions[currentVersionIndex];
-                updateVersionInfo();
-            }
+        function closeSettings(){ document.getElementById('settingsModal').style.display='none'; }
+        function saveSettings(){
+            apiSettings.model=document.getElementById('modelSelect').value;
+            apiSettings.apiKey=document.getElementById('apiKey').value.trim();
+            apiSettings.baseUrl=document.getElementById('baseUrl').value.trim()||'https://api.openai.com/v1';
+            localStorage.setItem(STORAGE_KEY,JSON.stringify(apiSettings));
+            document.getElementById('modelInfo').textContent='当前模型: '+apiSettings.model;
+            closeSettings();
+            setStatus('设置已保存','success');
         }
-        function updateVersionInfo() {
-            document.getElementById('versionInfo').textContent = `版本 ${currentVersionIndex + 1}/${codeVersions.length}`;
+        function loadSettings(){
+            const s=localStorage.getItem(STORAGE_KEY);
+            if(s){ try{ apiSettings=JSON.parse(s);}catch{} }
+            document.getElementById('modelInfo').textContent='当前模型: '+apiSettings.model;
         }
-        function copyCode(type) {
-            const ta = document.getElementById(type === 'input' ? 'inputCode' : 'outputCode');
-            navigator.clipboard.writeText(ta.value).then(() => setStatus('已复制', 'success'));
-        }
-        function setStatus(msg, cls) {
-            const el = document.getElementById('statusText');
-            el.textContent = msg;
-            el.className = cls;
-        }
-        // ...其余 UI 辅助函数原样保留
     </script>
 </body>
 </html>

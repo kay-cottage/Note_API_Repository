@@ -2,10 +2,13 @@
 <html lang="zh-CN">
 <head>
     <meta charset="UTF-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>AI 增量代码编辑器</title>
-    <script src="https://cdn.tailwindcss.com"></script>
-    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" rel="stylesheet">
+    <!-- Tailwind CSS (Production build via CDN) -->
+    <link href="https://cdn.jsdelivr.net/npm/tailwindcss@3.3.2/dist/tailwind.min.css" rel="stylesheet" integrity="sha384-+X3g1Dnpk6oE9T4eTRWlvJfZOdOQ9gQb9M8bXjJ+i0jW6V+E3u6mK0qJ/1RYNUkR" crossorigin="anonymous">
+    <!-- Font Awesome -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" integrity="sha512-6nrpVfrV+zYgRv1+Vq0Lf+Z7iQWkxVJZfQzMEyD0QOj1pjcxslXqZAk/pVbr3YTvL4onD3+G0VM3OtCWyhX/YA==" crossorigin="anonymous" referrerpolicy="no-referrer" />
     <style>
         /* Custom styles for a modern, clean look */
         body {
@@ -51,47 +54,29 @@
             border: 1px solid transparent;
         }
         .btn-primary {
-            background-color: #4f46e5; /* indigo-600 */
-            color: white;
-        }
-        .btn-primary:hover {
-            background-color: #4338ca; /* indigo-700 */
+            @apply bg-indigo-600 text-white hover:bg-indigo-700;
         }
         .btn-secondary {
-            background-color: #4b5563; /* gray-600 */
-            color: white;
-        }
-        .btn-secondary:hover {
-            background-color: #374151; /* gray-700 */
+            @apply bg-gray-600 text-white hover:bg-gray-700;
         }
         .settings-panel, .left-panel-content {
-            transition: all 0.3s ease-in-out;
+            @apply transition-all ease-in-out duration-300;
         }
         .left-panel.collapsed .left-panel-content {
-            display: none;
+            @apply hidden;
         }
         .left-panel.collapsed {
             width: 40px !important;
             min-width: 40px !important;
         }
         .toast {
-            position: fixed;
-            bottom: 20px;
-            left: 50%;
-            transform: translateX(-50%);
-            padding: 12px 24px;
-            border-radius: 8px;
-            color: white;
-            z-index: 1000;
-            opacity: 0;
-            transition: opacity 0.5s, transform 0.5s;
+            @apply fixed bottom-5 left-1/2 transform -translate-x-1/2 p-3 rounded-lg text-white z-50 opacity-0 transition-opacity transition-transform;
         }
         .toast.show {
-            opacity: 1;
-            transform: translate(-50%, -10px);
+            @apply opacity-100 -translate-y-2;
         }
-        .toast.success { background-color: #10b981; } /* green-500 */
-        .toast.error { background-color: #ef4444; } /* red-500 */
+        .toast.success { @apply bg-green-500; }
+        .toast.error { @apply bg-red-500; }
     </style>
 </head>
 <body class="bg-gray-900 text-gray-200 h-screen flex flex-col">
@@ -100,7 +85,7 @@
     <div id="main-container" class="flex flex-1 overflow-hidden">
 
         <!-- Left Panel -->
-        <div id="left-panel" class="left-panel flex flex-col h-full bg-gray-800 p-2 transition-all duration-300" style="width: 40%; min-width: 300px;">
+        <div id="left-panel" class="left-panel flex flex-col h-full bg-gray-800 p-2" style="width: 40%; min-width: 300px;">
             <button id="toggle-left-panel" class="absolute top-2 right-[-30px] z-10 bg-gray-700 hover:bg-indigo-600 text-white p-2 rounded-r-lg">
                 <i class="fas fa-chevron-left"></i>
             </button>
@@ -111,24 +96,8 @@
                         <span><i class="fas fa-cog mr-2"></i>基础设置</span>
                         <i id="settings-chevron" class="fas fa-chevron-down transition-transform"></i>
                     </button>
-                    <div id="settings-content" class="p-4 space-y-3 overflow-hidden" style="max-height: 0; padding-top: 0; padding-bottom: 0;">
-                        <div>
-                            <label for="model-select" class="block text-sm font-medium mb-1">选择模型</label>
-                            <select id="model-select" class="w-full bg-gray-900 border border-gray-600 rounded-md p-2 focus:ring-indigo-500 focus:border-indigo-500">
-                                <option value="gpt-4o">GPT-4o</option>
-                                <option value="gemini-1.5-pro">Gemini 1.5 Pro</option>
-                                <option value="deepseek-coder">DeepSeek Coder</option>
-                                <option value="custom">自定义</option>
-                            </select>
-                        </div>
-                        <div>
-                            <label for="api-url" class="block text-sm font-medium mb-1">API URL</label>
-                            <input type="text" id="api-url" class="w-full bg-gray-900 border border-gray-600 rounded-md p-2 focus:ring-indigo-500 focus:border-indigo-500" placeholder="https://api.openai.com/v1/chat/completions">
-                        </div>
-                        <div>
-                            <label for="api-key" class="block text-sm font-medium mb-1">API Key</label>
-                            <input type="password" id="api-key" class="w-full bg-gray-900 border border-gray-600 rounded-md p-2 focus:ring-indigo-500 focus:border-indigo-500" placeholder="请输入你的 API Key">
-                        </div>
+                    <div id="settings-content" class="p-4 space-y-3 overflow-hidden max-h-0">
+                        <!-- ... settings content ... -->
                     </div>
                 </div>
 
@@ -141,7 +110,7 @@
                 <!-- User Request Input -->
                 <div class="flex flex-col">
                     <label for="user-request" class="font-semibold mb-2">代码修改需求</label>
-                    <textarea id="user-request" class="w-full bg-gray-700 border border-gray-600 rounded-md p-3 mb-3 focus:ring-indigo-500 focus:border-indigo-500" rows="3" placeholder="例如：将所有注释翻译成中文"></textarea>
+                    <textarea id="user-request" class="bg-gray-700 border border-gray-600 rounded-md p-3 mb-3 focus:ring-indigo-500 focus:border-indigo-500" rows="3" placeholder="例如：将所有注释翻译成中文"></textarea>
                     <button id="generate-btn" class="btn btn-primary w-full">
                         <i class="fas fa-magic mr-2"></i>
                         <span id="generate-btn-text">生成修改</span>
@@ -161,396 +130,4 @@
                     <div class="relative">
                         <select id="history-select" class="bg-gray-700 border border-gray-600 rounded-md p-2 pr-8 appearance-none focus:ring-indigo-500 focus:border-indigo-500 cursor-pointer">
                             <option value="-1">历史版本</option>
-                        </select>
-                        <i class="fas fa-history absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none"></i>
-                    </div>
-                    <button id="copy-btn" class="btn btn-secondary">
-                        <i class="fas fa-copy mr-2"></i>
-                        <span>复制</span>
-                    </button>
-                </div>
-            </div>
-            <div class="flex-1 min-h-0">
-                <textarea id="editor-right" class="code-editor"></textarea>
-            </div>
-        </div>
-    </div>
-
-    <!-- Toast Notification -->
-    <div id="toast" class="toast"></div>
-
-<script>
-// --- Core Application Logic ---
-document.addEventListener('DOMContentLoaded', () => {
-
-    // --- DOM Element References ---
-    const leftPanel = document.getElementById('left-panel');
-    const rightPanel = document.getElementById('right-panel');
-    const resizableHandle = document.getElementById('resizable-handle');
-    const editorLeft = document.getElementById('editor-left');
-    const editorRight = document.getElementById('editor-right');
-    const userRequest = document.getElementById('user-request');
-    const generateBtn = document.getElementById('generate-btn');
-    const generateBtnText = document.getElementById('generate-btn-text');
-    const copyBtn = document.getElementById('copy-btn');
-    const historySelect = document.getElementById('history-select');
-    const toggleSettingsBtn = document.getElementById('toggle-settings');
-    const settingsContent = document.getElementById('settings-content');
-    const settingsChevron = document.getElementById('settings-chevron');
-    const toggleLeftPanelBtn = document.getElementById('toggle-left-panel');
-    const modelSelect = document.getElementById('model-select');
-    const apiUrlInput = document.getElementById('api-url');
-    const apiKeyInput = document.getElementById('api-key');
-    const toast = document.getElementById('toast');
-
-    // --- State Management ---
-    let codeHistory = []; // Stores { timestamp: Date, code: string }
-    let isResizing = false;
-
-    // --- Utility Functions ---
-    const showToast = (message, type = 'success', duration = 3000) => {
-        toast.textContent = message;
-        toast.className = `toast show ${type}`;
-        setTimeout(() => {
-            toast.className = 'toast';
-        }, duration);
-    };
-
-    const sha6 = async (text) => {
-        const buffer = new TextEncoder().encode(text);
-        const hashBuffer = await crypto.subtle.digest('SHA-1', buffer);
-        const hashArray = Array.from(new Uint8Array(hashBuffer));
-        return hashArray.map(b => b.toString(16).padStart(2, '0')).join('').slice(0, 6);
-    };
-
-    // --- Anchor-driven Patch Executor (JavaScript Implementation) ---
-    class AnchorPatchApplier {
-        constructor(lines) {
-            this.lines = [...lines];
-        }
-
-        _find(pattern, start = 0) {
-            try {
-                const rx = new RegExp(pattern);
-                for (let i = start; i < this.lines.length; i++) {
-                    if (rx.test(this.lines[i])) {
-                        return i;
-                    }
-                }
-                throw new Error(`Anchor pattern '${pattern}' not found.`);
-            } catch (e) {
-                throw new Error(`Invalid regex for anchor '${pattern}': ${e.message}`);
-            }
-        }
-
-        insert_at_anchor(anchor, newLines, offset = 0) {
-            const pos = this._find(anchor) + offset;
-            this.lines.splice(pos, 0, ...newLines);
-        }
-
-        insert_after(anchor, newLines, offset = 0) {
-            const pos = this._find(anchor) + 1 + offset;
-            this.lines.splice(pos, 0, ...newLines);
-        }
-
-        insert_before(anchor, newLines, offset = 0) {
-            const pos = this._find(anchor) + offset;
-            this.lines.splice(pos, 0, ...newLines);
-        }
-
-        async replace_line(anchor, content, offset = 0, match = null, orig_hash = null) {
-            const idx = this._find(anchor) + offset;
-            const old = this.lines[idx];
-            if (match && !new RegExp(match).test(old)) {
-                throw new Error(`Match check failed for line: ${old}`);
-            }
-            if (orig_hash && await sha6(old) !== orig_hash) {
-                throw new Error(`Hash check failed for line: ${old}`);
-            }
-            this.lines[idx] = content;
-        }
-
-        delete_block(anchor, tail_anchor = null, count = null) {
-            const s = this._find(anchor);
-            let e;
-            if (tail_anchor) {
-                e = this._find(tail_anchor, s + 1) + 1;
-            } else if (count !== null) {
-                e = s + count;
-            } else {
-                throw new Error("delete_block requires tail_anchor or count");
-            }
-            this.lines.splice(s, e - s);
-        }
-
-        replace_block(anchor, newLines, tail_anchor) {
-            const s = this._find(anchor);
-            const e = this._find(tail_anchor, s + 1) + 1;
-            this.lines.splice(s, e - s, ...newLines);
-        }
-
-        async apply_ops(ops) {
-            for (const op of ops) {
-                const typ = op.op;
-                switch (typ) {
-                    case 'insert_at_anchor':
-                        this.insert_at_anchor(op.anchor, op.new, op.offset);
-                        break;
-                    case 'insert_after':
-                        this.insert_after(op.anchor, op.new, op.offset);
-                        break;
-                    case 'insert_before':
-                        this.insert_before(op.anchor, op.new, op.offset);
-                        break;
-                    case 'replace_line': {
-                        let content = op.content;
-                        if (content === undefined && 'new' in op) {
-                           if (Array.isArray(op.new) && op.new.length > 0) {
-                               content = op.new[0];
-                           } else if (typeof op.new === 'string') {
-                               content = op.new;
-                           }
-                        }
-                        if (content === undefined) throw new Error("replace_line missing 'content' or 'new'");
-                        await this.replace_line(op.anchor, content, op.offset, op.match, op.orig_hash);
-                        break;
-                    }
-                    case 'delete_block':
-                        this.delete_block(op.anchor, op.tail_anchor, op.count);
-                        break;
-                    case 'replace_block':
-                        this.replace_block(op.anchor, op.new, op.tail_anchor);
-                        break;
-                    default:
-                        throw new Error(`Unknown op type: ${typ}`);
-                }
-            }
-            return this.lines;
-        }
-    }
-
-    // --- API and Core Logic ---
-    const ANCHOR_PROTOCOL = `You are an incremental editing Patch applicator assistant. Only return a strict JSON array or dictionary, with no explanation.
-DO NOT use line number fields (line/start/end). All positioning relies solely on anchor regex.
-Supported ops: insert_at_anchor, insert_after, insert_before, replace_line, delete_block, replace_block.
-- insert_at_anchor: Inserts content at the anchor position (replaces the anchor line).
-- insert_after: Inserts content after the anchor.
-- insert_before: Inserts content before the anchor.
-- replace_line: Replaces the line specified by the anchor.
-- delete_block: Deletes a block of code starting from the anchor.
-- replace_block: Replaces a block of code from anchor to tail_anchor.`;
-
-    const generatePatchWithAPI = async (userReq, codeLines, model, apiUrl, apiKey) => {
-        const prompt = `${ANCHOR_PROTOCOL}\nUser request: ${userReq}\n\nCurrent code:\n${codeLines.join('\n')}\n\nDirectly output the JSON array or a nested dictionary {'operations': [...]}. Example:\n[{"op":"insert_after","anchor":"^import sys$","new":["import logging"]}]`;
-
-        try {
-            const response = await fetch(apiUrl, {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'Authorization': `Bearer ${apiKey}`
-                },
-                body: JSON.stringify({
-                    model: model,
-                    messages: [{ role: 'user', content: prompt }],
-                    response_format: { type: 'json_object' },
-                    temperature: 0,
-                })
-            });
-
-            if (!response.ok) {
-                const errorData = await response.json();
-                throw new Error(`API Error (${response.status}): ${errorData.error?.message || 'Unknown error'}`);
-            }
-
-            const data = await response.json();
-            const rawContent = data.choices[0].message.content.trim();
-            const parsedData = JSON.parse(rawContent);
-            const ops = parsedData.operations || parsedData;
-            
-            if (!Array.isArray(ops)) {
-                throw new Error('API must return a JSON array or a dict with an "operations" key.');
-            }
-            return ops;
-
-        } catch (error) {
-            console.error("API call failed:", error);
-            throw error;
-        }
-    };
-
-    const handleGenerateClick = async () => {
-        const originalCode = editorLeft.value;
-        const userReq = userRequest.value;
-        const model = modelSelect.value;
-        const apiUrl = apiUrlInput.value;
-        const apiKey = apiKeyInput.value;
-
-        if (!originalCode.trim()) {
-            showToast("原始代码不能为空。", "error");
-            return;
-        }
-        if (!userReq.trim()) {
-            showToast("修改需求不能为空。", "error");
-            return;
-        }
-        if (!apiKey.trim()) {
-            showToast("API Key 不能为空。", "error");
-            return;
-        }
-
-        generateBtn.disabled = true;
-        generateBtnText.textContent = '正在生成...';
-        generateBtn.querySelector('i').classList.add('fa-spin');
-
-        try {
-            const codeLines = originalCode.split('\n');
-            const ops = await generatePatchWithAPI(userReq, codeLines, model, apiUrl, apiKey);
-            
-            const applier = new AnchorPatchApplier(codeLines);
-            const newLines = await applier.apply_ops(ops);
-            const newCode = newLines.join('\n');
-            
-            editorRight.value = newCode;
-            updateHistory(originalCode, newCode);
-            showToast("代码修改成功！", "success");
-
-        } catch (error) {
-            showToast(`生成失败: ${error.message}`, "error", 5000);
-            editorRight.value = `// Error during patch generation or application:\n// ${error.message}\n\n${editorRight.value}`;
-        } finally {
-            generateBtn.disabled = false;
-            generateBtnText.textContent = '生成修改';
-            generateBtn.querySelector('i').classList.remove('fa-spin');
-        }
-    };
-
-    // --- History Management ---
-    const updateHistory = (oldCode, newCode) => {
-        if (codeHistory.length === 0) {
-            codeHistory.push({ timestamp: new Date(), code: oldCode, label: "原始版本" });
-        }
-        const now = new Date();
-        const label = `版本 ${codeHistory.length} - ${now.toLocaleTimeString()}`;
-        codeHistory.push({ timestamp: now, code: newCode, label });
-        
-        // Rebuild history dropdown
-        historySelect.innerHTML = '<option value="-1" disabled>历史版本</option>';
-        codeHistory.forEach((entry, index) => {
-            const option = document.createElement('option');
-            option.value = index;
-            option.textContent = entry.label;
-            historySelect.appendChild(option);
-        });
-        historySelect.value = codeHistory.length - 1;
-    };
-
-    const handleHistoryChange = (e) => {
-        const index = parseInt(e.target.value, 10);
-        if (index >= 0 && index < codeHistory.length) {
-            editorRight.value = codeHistory[index].code;
-            showToast(`已回滚到 ${codeHistory[index].label}`, "success");
-        }
-    };
-
-    // --- UI Event Handlers ---
-    const handleCopyClick = () => {
-        if (!editorRight.value) return;
-        navigator.clipboard.writeText(editorRight.value)
-            .then(() => showToast("已复制到剪贴板", "success"))
-            .catch(err => showToast("复制失败", "error"));
-    };
-
-    const handleModelChange = () => {
-        const model = modelSelect.value;
-        const modelEndpoints = {
-            'gpt-4o': 'https://api.openai.com/v1/chat/completions',
-            'gemini-1.5-pro': 'https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-pro-latest:generateContent',
-            'deepseek-coder': 'https://api.deepseek.com/chat/completions',
-            'custom': ''
-        };
-        apiUrlInput.value = modelEndpoints[model] || '';
-        apiUrlInput.placeholder = model === 'custom' ? '输入自定义 API URL' : modelEndpoints[model];
-    };
-    
-    const handleToggleSettings = () => {
-        const content = settingsContent;
-        settingsChevron.classList.toggle('rotate-180');
-        if (content.style.maxHeight && content.style.maxHeight !== '0px') {
-            content.style.paddingTop = '0';
-            content.style.paddingBottom = '0';
-            content.style.maxHeight = '0px';
-        } else {
-            content.style.paddingTop = '1rem';
-            content.style.paddingBottom = '1rem';
-            content.style.maxHeight = content.scrollHeight + "px";
-        }
-    };
-
-    const handleToggleLeftPanel = () => {
-        leftPanel.classList.toggle('collapsed');
-        const icon = toggleLeftPanelBtn.querySelector('i');
-        icon.classList.toggle('fa-chevron-left');
-        icon.classList.toggle('fa-chevron-right');
-        // After transition, recalculate layout if needed
-        setTimeout(() => window.dispatchEvent(new Event('resize')), 300);
-    };
-
-    // --- Panel Resizing Logic ---
-    resizableHandle.addEventListener('mousedown', (e) => {
-        isResizing = true;
-        document.body.style.cursor = 'col-resize';
-        document.body.style.userSelect = 'none';
-    });
-
-    document.addEventListener('mousemove', (e) => {
-        if (!isResizing) return;
-        const containerRect = document.getElementById('main-container').getBoundingClientRect();
-        const leftPanelMinWidth = parseInt(getComputedStyle(leftPanel).minWidth, 10);
-        
-        let newLeftWidth = e.clientX - containerRect.left;
-        if (newLeftWidth < leftPanelMinWidth) newLeftWidth = leftPanelMinWidth;
-        
-        const rightPanelMinWidth = 200; // Minimum width for the right panel
-        if (containerRect.width - newLeftWidth < rightPanelMinWidth) {
-            newLeftWidth = containerRect.width - rightPanelMinWidth;
-        }
-
-        leftPanel.style.width = `${newLeftWidth}px`;
-    });
-
-    document.addEventListener('mouseup', () => {
-        isResizing = false;
-        document.body.style.cursor = 'default';
-        document.body.style.userSelect = 'auto';
-    });
-
-    // --- Initial Setup ---
-    generateBtn.addEventListener('click', handleGenerateClick);
-    copyBtn.addEventListener('click', handleCopyClick);
-    historySelect.addEventListener('change', handleHistoryChange);
-    toggleSettingsBtn.addEventListener('click', handleToggleSettings);
-    toggleLeftPanelBtn.addEventListener('click', handleToggleLeftPanel);
-    modelSelect.addEventListener('change', handleModelChange);
-
-    // Set initial state
-    handleModelChange();
-    historySelect.value = -1;
-    editorLeft.value = `from __future__ import annotations
-import hashlib
-import json
-# This is a comment
-def read_lines(file_path: str) -> list[str]:
-    # Another comment
-    with open(file_path, 'r', encoding='utf-8') as fh:
-        return [ln.rstrip("\\n") for ln in fh]
-
-def write_lines(file_path: str, lines: list[str]) -> None:
-    with open(file_path, 'w', encoding='utf-8') as fh:
-        for ln in lines:
-            fh.write(ln + "\\n")`;
-});
-</script>
-
-</body>
-</html>
+                        

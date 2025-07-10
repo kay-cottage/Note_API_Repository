@@ -387,7 +387,7 @@
     <script>
         // We wrap the entire script in a DOMContentLoaded listener to be extra safe.
         // This ensures the DOM is fully ready before we try to manipulate it.
-        document.addEventListener('DOMContentLoaded', () => {
+    window.onload = function() {
             
             // --- CORE LOGIC: Reimplementation of the Python Script ---
 
@@ -830,7 +830,7 @@ def write_lines(file_path: str, lines: Sequence[str]) -> None:
 
             // Initial render
             renderVersionHistory();
-        });
+        };
 
     </script>
 </body>

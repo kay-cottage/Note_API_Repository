@@ -1,0 +1,537 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Incremental Code Editor</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+    <style>
+        :root {
+            --bg-color: #1e1e1e;
+            --editor-bg: #252526;
+            --panel-bg: #2d2d2d;
+            --border-color: #3e3e3e;
+            --text-color: #d4d4d4;
+            --primary-color: #0e639c;
+            --primary-hover: #1177bb;
+            --resizer-color: #4f4f4f;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+            background-color: var(--bg-color);
+            color: var(--text-color);
+            overflow: hidden;
+        }
+
+        .main-container {
+            display: flex;
+            height: 100vh;
+        }
+
+        #left-panel {
+            background-color: var(--panel-bg);
+            transition: min-width 0.3s ease, width 0.3s ease;
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+        }
+
+        #left-panel.collapsed {
+            min-width: 0 !important;
+            width: 0 !important;
+            padding: 0;
+        }
+
+        #resizer {
+            width: 5px;
+            cursor: col-resize;
+            background-color: var(--resizer-color);
+            flex-shrink: 0;
+        }
+        #resizer:hover {
+            background-color: var(--primary-color);
+        }
+
+        #right-panel {
+            flex-grow: 1;
+            display: flex;
+            flex-direction: column;
+        }
+        
+        .code-editor {
+            flex-grow: 1;
+            background-color: var(--editor-bg);
+            border: 1px solid var(--border-color);
+            color: var(--text-color);
+            font-family: 'Fira Code', 'Courier New', monospace;
+            font-size: 14px;
+            line-height: 1.5;
+            padding: 1rem;
+            resize: none;
+            outline: none;
+            white-space: pre;
+            overflow: auto;
+        }
+
+        .panel-header {
+            background-color: #333;
+            padding: 0.5rem 1rem;
+            font-weight: 600;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-bottom: 1px solid var(--border-color);
+        }
+
+        .btn {
+            background-color: var(--primary-color);
+            color: white;
+            padding: 0.5rem 1rem;
+            border-radius: 0.375rem;
+            border: none;
+            cursor: pointer;
+            transition: background-color 0.2s;
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+        .btn:hover {
+            background-color: var(--primary-hover);
+        }
+        .btn:disabled {
+            background-color: #555;
+            cursor: not-allowed;
+        }
+
+        .icon-btn {
+            background: none;
+            border: none;
+            color: var(--text-color);
+            cursor: pointer;
+            font-size: 1.1rem;
+            padding: 0.25rem;
+        }
+        .icon-btn:hover {
+            color: var(--primary-color);
+        }
+
+        .settings-panel details[open] summary ~ * {
+            animation: sweep .5s ease-in-out;
+        }
+
+        @keyframes sweep {
+            from { opacity: 0; transform: translateY(-10px) }
+            to   { opacity: 1; transform: translateY(0) }
+        }
+
+        .history-item {
+            cursor: pointer;
+            padding: 0.5rem 1rem;
+            border-bottom: 1px solid var(--border-color);
+            transition: background-color 0.2s;
+        }
+        .history-item:hover {
+            background-color: var(--editor-bg);
+        }
+        .history-item.active {
+            background-color: var(--primary-color);
+            color: white;
+        }
+    </style>
+</head>
+<body>
+
+    <div class="main-container">
+        <!-- Left Panel: Controls and Source Code -->
+        <aside id="left-panel" class="w-1/3 min-w-[350px] flex flex-col">
+            <div class="panel-header">
+                <span>Controls & Source</span>
+                <button id="toggle-left-panel" class="icon-btn" title="Toggle Panel">
+                    <i class="fas fa-chevron-left"></i>
+                </button>
+            </div>
+            
+            <div class="p-4 space-y-4 overflow-y-auto">
+                <!-- Settings Panel -->
+                <div class="settings-panel bg-gray-800 rounded-lg">
+                    <details>
+                        <summary class="p-3 cursor-pointer font-semibold">
+                            <i class="fas fa-cog mr-2"></i>API Settings
+                        </summary>
+                        <div class="p-3 border-t border-gray-700 space-y-3">
+                            <div>
+                                <label for="model-select" class="block text-sm font-medium mb-1">Model</label>
+                                <select id="model-select" class="w-full p-2 bg-gray-700 border border-gray-600 rounded-md">
+                                    <option value="gpt-4o">GPT-4o</option>
+                                    <option value="deepseek-coder">DeepSeek Coder</option>
+                                    <option value="gemini-1.5-pro">Gemini 1.5 Pro</option>
+                                </select>
+                            </div>
+                            <div>
+                                <label for="api-url" class="block text-sm font-medium mb-1">API URL</label>
+                                <input type="text" id="api-url" class="w-full p-2 bg-gray-700 border border-gray-600 rounded-md" placeholder="API Base URL">
+                            </div>
+                            <div>
+                                <label for="api-key" class="block text-sm font-medium mb-1">API Key</label>
+                                <input type="password" id="api-key" class="w-full p-2 bg-gray-700 border border-gray-600 rounded-md" placeholder="Enter your API Key">
+                            </div>
+                        </div>
+                    </details>
+                </div>
+
+                <!-- User Request -->
+                <div>
+                    <label for="user-request" class="block text-sm font-medium mb-1">User Request</label>
+                    <textarea id="user-request" rows="3" class="w-full p-2 bg-gray-700 border border-gray-600 rounded-md" placeholder="e.g., Change all comments to Chinese"></textarea>
+                </div>
+                
+                <!-- Generate Button -->
+                <button id="generate-btn" class="btn w-full justify-center">
+                    <i id="generate-icon" class="fas fa-bolt"></i>
+                    <span id="generate-text">Generate Edit</span>
+                </button>
+            </div>
+            
+            <!-- Source Code Editor -->
+            <div class="panel-header">
+                <span>Source Code</span>
+            </div>
+            <textarea id="source-code" class="code-editor" placeholder="Paste your source code here..."></textarea>
+        </aside>
+
+        <!-- Resizer Handle -->
+        <div id="resizer"></div>
+
+        <!-- Right Panel: Edited Code and History -->
+        <main id="right-panel" class="flex flex-col">
+            <div class="panel-header">
+                <span>Edited Code</span>
+                <div>
+                    <button id="copy-btn" class="icon-btn" title="Copy Code"><i class="fas fa-copy"></i></button>
+                </div>
+            </div>
+            <textarea id="edited-code" class="code-editor" placeholder="Edited code will appear here..."></textarea>
+            
+            <div class="panel-header">
+                <span>Version History</span>
+            </div>
+            <div id="history-list" class="overflow-y-auto h-32 bg-gray-800">
+                <div class="p-4 text-gray-500 text-center">No history yet.</div>
+            </div>
+        </main>
+    </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            // --- DOM Element References ---
+            const leftPanel = document.getElementById('left-panel');
+            const resizer = document.getElementById('resizer');
+            const sourceCodeEditor = document.getElementById('source-code');
+            const editedCodeEditor = document.getElementById('edited-code');
+            const userRequestInput = document.getElementById('user-request');
+            const generateBtn = document.getElementById('generate-btn');
+            const generateIcon = document.getElementById('generate-icon');
+            const generateText = document.getElementById('generate-text');
+            const copyBtn = document.getElementById('copy-btn');
+            const historyList = document.getElementById('history-list');
+            const toggleBtn = document.getElementById('toggle-left-panel');
+            const toggleIcon = toggleBtn.querySelector('i');
+
+            const modelSelect = document.getElementById('model-select');
+            const apiUrlInput = document.getElementById('api-url');
+            const apiKeyInput = document.getElementById('api-key');
+
+            // --- State Management ---
+            let history = [];
+            let currentHistoryIndex = -1;
+
+            // --- Model API Configuration ---
+            const modelConfigs = {
+                'gpt-4o': 'https://api.openai.com/v1/chat/completions',
+                'deepseek-coder': 'https://api.deepseek.com/chat/completions',
+                'gemini-1.5-pro': 'https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-pro:generateContent'
+            };
+
+            const updateApiUrl = () => {
+                apiUrlInput.value = modelConfigs[modelSelect.value] || '';
+            };
+            modelSelect.addEventListener('change', updateApiUrl);
+            updateApiUrl(); // Set initial value
+
+            // --- Core Patch Applier Logic (Ported from Python) ---
+            class AnchorPatchApplier {
+                constructor(lines) {
+                    this.lines = [...lines];
+                }
+
+                _find(pattern, start = 0) {
+                    const rx = new RegExp(pattern);
+                    for (let i = start; i < this.lines.length; i++) {
+                        if (rx.test(this.lines[i])) {
+                            return i;
+                        }
+                    }
+                    throw new Error(`Anchor pattern '${pattern}' not found.`);
+                }
+
+                insert_at_anchor(anchor, newLines, offset = 0) {
+                    const pos = this._find(anchor) + offset;
+                    this.lines.splice(pos, 0, ...newLines);
+                }
+
+                insert_after(anchor, newLines, offset = 0) {
+                    const pos = this._find(anchor) + 1 + offset;
+                    this.lines.splice(pos, 0, ...newLines);
+                }
+
+                insert_before(anchor, newLines, offset = 0) {
+                    const pos = this._find(anchor) + offset;
+                    this.lines.splice(pos, 0, ...newLines);
+                }
+
+                replace_line(anchor, content, offset = 0) {
+                    const idx = this._find(anchor) + offset;
+                    this.lines[idx] = content;
+                }
+
+                delete_block(anchor, tail_anchor = null, count = null) {
+                    const s = this._find(anchor);
+                    let e;
+                    if (tail_anchor) {
+                        e = this._find(tail_anchor, s + 1) + 1;
+                    } else if (count !== null) {
+                        e = s + count;
+                    } else {
+                        throw new Error("delete_block requires tail_anchor or count");
+                    }
+                    this.lines.splice(s, e - s);
+                }
+
+                replace_block(anchor, newLines, tail_anchor) {
+                    const s = this._find(anchor);
+                    const e = this._find(tail_anchor, s + 1) + 1;
+                    this.lines.splice(s, e - s, ...newLines);
+                }
+
+                apply_ops(ops) {
+                    ops.forEach(op => {
+                        const { anchor, new: newLines, offset = 0 } = op;
+                        switch (op.op) {
+                            case 'insert_at_anchor':
+                                this.insert_at_anchor(anchor, newLines, offset);
+                                break;
+                            case 'insert_after':
+                                this.insert_after(anchor, newLines, offset);
+                                break;
+                            case 'insert_before':
+                                this.insert_before(anchor, newLines, offset);
+                                break;
+                            case 'replace_line':
+                                let content = op.content;
+                                if (content === undefined && 'new' in op) {
+                                    const newValue = op.new;
+                                    if (Array.isArray(newValue) && newValue.length > 0) {
+                                        content = newValue[0];
+                                    } else if (typeof newValue === 'string') {
+                                        content = newValue;
+                                    }
+                                }
+                                if (content === undefined) throw new Error("replace_line missing 'content' or 'new'");
+                                this.replace_line(anchor, content, offset);
+                                break;
+                            case 'delete_block':
+                                this.delete_block(anchor, op.tail_anchor, op.count);
+                                break;
+                            case 'replace_block':
+                                this.replace_block(anchor, newLines, op.tail_anchor);
+                                break;
+                            default:
+                                throw new Error(`Unknown operation: ${op.op}`);
+                        }
+                    });
+                    return this.lines;
+                }
+            }
+
+            // --- API Call Logic ---
+            const ANCHOR_PROTOCOL = `You are an assistant for applying incremental patches. Only return a strict JSON array or dictionary, with no explanation.
+Do not use line number fields (line/start/end); all positioning must rely on anchor regex.
+Supported ops: insert_at_anchor, insert_after, insert_before, replace_line, delete_block, replace_block.
+- insert_at_anchor: Insert content at the anchor position (replaces the anchor line).
+- insert_after: Insert content after the anchor.
+- insert_before: Insert content before the anchor.
+- replace_line: Replace the line specified by the anchor.
+- delete_block: Delete a block of code starting from the anchor.
+- replace_block: Replace a block of code from anchor to tail_anchor.`;
+
+            async function generatePatch(userRequest, codeLines, model, apiUrl, apiKey) {
+                const prompt = `${ANCHOR_PROTOCOL}\nUser request: ${userRequest}\n\nCurrent code:\n${codeLines.join('\n')}\n\nDirectly output a JSON array or a nested dictionary {'operations': [...]}. Example:\n[{"op":"insert_after","anchor":"^import sys$","new":["import logging"]}]`;
+
+                let headers = { 'Content-Type': 'application/json' };
+                let body;
+                
+                if (model.startsWith('gemini')) {
+                    // Gemini specific format
+                    apiUrl = `${apiUrl}?key=${apiKey}`;
+                    body = JSON.stringify({
+                      contents: [{ parts: [{ text: prompt }] }],
+                      generationConfig: { response_mime_type: "application/json" }
+                    });
+                } else {
+                    // OpenAI / DeepSeek format
+                    headers['Authorization'] = `Bearer ${apiKey}`;
+                    body = JSON.stringify({
+                        model: model,
+                        messages: [{ role: 'user', content: prompt }],
+                        response_format: { type: 'json_object' },
+                        temperature: 0,
+                    });
+                }
+
+                const response = await fetch(apiUrl, {
+                    method: 'POST',
+                    headers: headers,
+                    body: body,
+                });
+
+                if (!response.ok) {
+                    const errorText = await response.text();
+                    throw new Error(`API Error (${response.status}): ${errorText}`);
+                }
+
+                const data = await response.json();
+                
+                let rawContent;
+                if (model.startsWith('gemini')) {
+                    rawContent = data.candidates[0].content.parts[0].text;
+                } else {
+                    rawContent = data.choices[0].message.content;
+                }
+
+                const parsedData = JSON.parse(rawContent.trim());
+                const ops = parsedData.operations || parsedData;
+                if (!Array.isArray(ops)) {
+                    throw new Error('API must return a JSON array or a dict with an "operations" key.');
+                }
+                return ops;
+            }
+
+            // --- Main Application Logic ---
+            generateBtn.addEventListener('click', async () => {
+                const sourceCode = sourceCodeEditor.value;
+                const userRequest = userRequestInput.value;
+                const apiKey = apiKeyInput.value;
+                const model = modelSelect.value;
+                const apiUrl = apiUrlInput.value;
+
+                if (!sourceCode || !userRequest || !apiKey) {
+                    alert('Please fill in Source Code, User Request, and API Key.');
+                    return;
+                }
+
+                generateBtn.disabled = true;
+                generateIcon.className = 'fas fa-spinner fa-spin';
+                generateText.textContent = 'Generating...';
+
+                try {
+                    const sourceLines = sourceCode.split('\n');
+                    const ops = await generatePatch(userRequest, sourceLines, model, apiUrl, apiKey);
+                    
+                    const applier = new AnchorPatchApplier(sourceLines);
+                    const newLines = applier.apply_ops(ops);
+                    const newCode = newLines.join('\n');
+
+                    editedCodeEditor.value = newCode;
+
+                    // Add to history
+                    const historyEntry = {
+                        id: Date.now(),
+                        request: userRequest,
+                        sourceCode,
+                        editedCode: newCode,
+                        ops,
+                    };
+                    history.push(historyEntry);
+                    currentHistoryIndex = history.length - 1;
+                    updateHistoryUI();
+
+                } catch (error) {
+                    console.error('Error:', error);
+                    alert(`An error occurred: ${error.message}`);
+                } finally {
+                    generateBtn.disabled = false;
+                    generateIcon.className = 'fas fa-bolt';
+                    generateText.textContent = 'Generate Edit';
+                }
+            });
+
+            // --- UI Interaction Handlers ---
+
+            // History UI
+            function updateHistoryUI() {
+                if (history.length === 0) {
+                    historyList.innerHTML = '<div class="p-4 text-gray-500 text-center">No history yet.</div>';
+                    return;
+                }
+                historyList.innerHTML = '';
+                history.forEach((entry, index) => {
+                    const item = document.createElement('div');
+                    item.className = 'history-item';
+                    if (index === currentHistoryIndex) {
+                        item.classList.add('active');
+                    }
+                    item.innerHTML = `
+                        <div class="font-semibold">Version ${index + 1}</div>
+                        <div class="text-sm text-gray-400 truncate">${entry.request}</div>
+                    `;
+                    item.addEventListener('click', () => {
+                        currentHistoryIndex = index;
+                        sourceCodeEditor.value = entry.sourceCode;
+                        editedCodeEditor.value = entry.editedCode;
+                        updateHistoryUI();
+                    });
+                    historyList.appendChild(item);
+                });
+            }
+
+            // Copy button
+            copyBtn.addEventListener('click', () => {
+                editedCodeEditor.select();
+                document.execCommand('copy');
+                const originalIcon = copyBtn.innerHTML;
+                copyBtn.innerHTML = '<i class="fas fa-check text-green-500"></i>';
+                setTimeout(() => { copyBtn.innerHTML = originalIcon; }, 1500);
+            });
+
+            // Resizer
+            let isResizing = false;
+            resizer.addEventListener('mousedown', (e) => {
+                isResizing = true;
+                document.addEventListener('mousemove', handleMouseMove);
+                document.addEventListener('mouseup', () => {
+                    isResizing = false;
+                    document.removeEventListener('mousemove', handleMouseMove);
+                });
+            });
+
+            function handleMouseMove(e) {
+                if (!isResizing) return;
+                const newLeftWidth = e.clientX;
+                if (newLeftWidth > 350 && newLeftWidth < window.innerWidth - 200) {
+                    leftPanel.style.width = `${newLeftWidth}px`;
+                }
+            }
+            
+            // Left panel toggle
+            toggleBtn.addEventListener('click', () => {
+                leftPanel.classList.toggle('collapsed');
+                const isCollapsed = leftPanel.classList.contains('collapsed');
+                toggleIcon.className = isCollapsed ? 'fas fa-chevron-right' : 'fas fa-chevron-left';
+                resizer.style.display = isCollapsed ? 'none' : 'block';
+            });
+        });
+    </script>
+</body>
+</html>

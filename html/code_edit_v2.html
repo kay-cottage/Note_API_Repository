@@ -346,8 +346,8 @@
             <div class="form-group">
                 <label for="modelSelect">选择模型</label>
                 <select id="modelSelect">
-                    <option value="gpt-4">OpenAI GPT-4</option>
-                    <option value="gpt-3.5-turbo">OpenAI GPT-3.5 Turbo</option>
+                    <option value="gpt-4o-mini">gpt-4o-mini</option>
+                    <option value="gpt-4o">gpt-4o</option>
                     <option value="deepseek-coder">DeepSeek Coder</option>
                     <option value="gemini-pro">Google Gemini Pro</option>
                     <option value="claude-3">Anthropic Claude 3</option>
@@ -539,6 +539,7 @@ ${codeLines.join('\n')}
                 body: JSON.stringify({
                     model: apiSettings.model,
                     messages: [{ role: 'user', content: prompt }],
+
                     response_format: { type: 'json_object' },
                     temperature: 0
                 })

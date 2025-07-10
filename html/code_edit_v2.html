@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>增量代码编辑器 (已修复)</title>
+    <title>增量代码编辑器</title>
 
     <!-- 样式文件 (CSS) 仍然放在头部，以便页面能尽快渲染出样式 -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.15/codemirror.min.css">
@@ -20,7 +20,7 @@
             --primary-color: #4a90e2;
             --primary-hover-color: #5aa1f2;
             --secondary-color: #777;
-            --font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            --font-family: "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
             --border-radius: 8px;
             --transition-speed: 0.3s;
         }
@@ -190,6 +190,7 @@
             font-size: 14px;
             line-height: 1.5;
             background: var(--editor-bg-color);
+            border-radius: var(--border-radius); /* Added rounded corners */
         }
 
         /* --- Left Panel Bottom (User Prompt) --- */
@@ -310,6 +311,50 @@
             pointer-events: none;
         }
 
+        /* Custom Message Box Styles */
+        .message-box-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.6);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 1000;
+        }
+
+        .message-box {
+            background-color: var(--panel-bg-color);
+            padding: 25px;
+            border-radius: var(--border-radius);
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.3);
+            text-align: center;
+            max-width: 400px;
+            width: 90%;
+        }
+
+        .message-box p {
+            margin-bottom: 20px;
+            font-size: 1.1em;
+            color: var(--text-color);
+        }
+
+        .message-box button {
+            background-color: var(--primary-color);
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: var(--border-radius);
+            cursor: pointer;
+            font-size: 1em;
+            transition: background-color var(--transition-speed);
+        }
+
+        .message-box button:hover {
+            background-color: var(--primary-hover-color);
+        }
     </style>
 </head>
 <body>
@@ -377,8 +422,8 @@
         </div>
     </div>
 
-    <!-- JAVASCRIPT LIBRARIES: Moved to the end of the body -->
-    <!-- This ensures the HTML is fully parsed before these scripts are executed, preventing errors. -->
+    <!-- JAVASCRIPT LIBRARIES: Moved to the end of the body and outside window.onload -->
+    <!-- This ensures the HTML is fully parsed and these scripts are executed before your app logic. -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.15/codemirror.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.15/mode/python/python.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.15/addon/edit/closebrackets.min.js"></script>
@@ -387,8 +432,30 @@
     <script>
         // We wrap the entire script in a DOMContentLoaded listener to be extra safe.
         // This ensures the DOM is fully ready before we try to manipulate it.
-    window.onload = function() {
-            
+        window.onload = function() {
+            // --- Custom Message Box Implementation ---
+            function showMessageBox(message) {
+                const overlay = document.createElement('div');
+                overlay.className = 'message-box-overlay';
+
+                const messageBox = document.createElement('div');
+                messageBox.className = 'message-box';
+
+                const messageParagraph = document.createElement('p');
+                messageParagraph.textContent = message;
+
+                const closeButton = document.createElement('button');
+                closeButton.textContent = '确定';
+                closeButton.onclick = () => {
+                    document.body.removeChild(overlay);
+                };
+
+                messageBox.appendChild(messageParagraph);
+                messageBox.appendChild(closeButton);
+                overlay.appendChild(messageBox);
+                document.body.appendChild(overlay);
+            }
+
             // --- CORE LOGIC: Reimplementation of the Python Script ---
 
             /**
@@ -514,37 +581,40 @@
             async function generatePatch(userRequest, codeLines, model, apiUrl, apiKey) {
                 const prompt = `${ANCHOR_PROTOCOL}\n用户需求：${userRequest}\n\n当前代码：\n${codeLines.join('\n')}\n\n直接输出 JSON 数组或嵌套字典 {'operations': [...]}。示例：\n[{"op":"insert_after","anchor":"^import sys$","new":["import logging"]}]`;
 
-                if (!apiUrl || !apiKey) {
-                    throw new Error("API URL 或 API Key 未设置。");
+                if (!apiUrl) {
+                    throw new Error("API URL 未设置。");
                 }
 
-                const headers = {
-                    'Content-Type': 'application/json',
-                    'Authorization': `Bearer ${apiKey}`
-                };
-
-                // Gemini API has a different structure
                 const isGemini = apiUrl.includes("generativelanguage.googleapis.com");
+                let headers = {
+                    'Content-Type': 'application/json',
+                };
                 let body;
 
                 if (isGemini) {
+                    // For Gemini, the API key is typically appended to the URL as a query parameter
+                    // or handled by the environment (like Canvas). We won't send it in the header.
+                    // The URL should already contain `?key=` if it's from `apiUrls` for Gemini.
                     body = JSON.stringify({
                         contents: [{
                             parts: [{ text: prompt }]
                         }],
                         generationConfig: {
-                           response_mime_type: "application/json",
+                            responseMimeType: "application/json",
                         }
                     });
-                } else { // OpenAI-compatible
-                     body = JSON.stringify({
+                } else { // OpenAI-compatible (GPT-4o, DeepSeek-Coder)
+                    if (!apiKey) {
+                        throw new Error("API Key 未设置。");
+                    }
+                    headers['Authorization'] = `Bearer ${apiKey}`;
+                    body = JSON.stringify({
                         model: model,
                         messages: [{ role: 'user', content: prompt }],
                         temperature: 0,
                         response_format: { type: 'json_object' } 
                     });
                 }
-
 
                 const response = await fetch(apiUrl, {
                     method: 'POST',
@@ -561,8 +631,15 @@
                 let rawContent;
 
                 if(isGemini) {
-                    rawContent = data.candidates[0].content.parts[0].text;
-                } else { // OpenAI-compatible
+                    // Gemini API response structure
+                    if (data.candidates && data.candidates.length > 0 &&
+                        data.candidates[0].content && data.candidates[0].content.parts &&
+                        data.candidates[0].content.parts.length > 0) {
+                        rawContent = data.candidates[0].content.parts[0].text;
+                    } else {
+                        throw new Error("Gemini API 返回的响应结构不符合预期。");
+                    }
+                } else { // OpenAI-compatible response structure
                     rawContent = data.choices[0].message.content.trim();
                 }
                 
@@ -570,7 +647,7 @@
                 try {
                     parsedData = JSON.parse(rawContent);
                 } catch (e) {
-                    throw new Error(`无法解析模型的JSON输出: ${rawContent}`);
+                    throw new Error(`无法解析模型的JSON输出: ${rawContent}. 错误: ${e.message}`);
                 }
                 
                 const ops = parsedData.operations || parsedData;
@@ -589,7 +666,7 @@
 
             const commonEditorOptions = {
                 lineNumbers: true,
-                mode: 'python',
+                mode: 'python', // Default mode, can be changed dynamically
                 theme: 'material-darker',
                 autoCloseBrackets: true,
                 indentUnit: 4,
@@ -601,6 +678,7 @@
 
             const rightEditor = CodeMirror.fromTextArea(rightTextArea, {
                 ...commonEditorOptions,
+                readOnly: true // Right editor is read-only for generated code
             });
             
             // Example initial code
@@ -631,46 +709,45 @@ def write_lines(file_path: str, lines: Sequence[str]) -> None:
 
             // --- Version History ---
             let versionHistory = [];
-            let currentVersionIndex = -1;
-
-            function updateAndRenderHistory(codeBeforeChange) {
-                versionHistory.push(codeBeforeChange);
-                currentVersionIndex = versionHistory.length - 1; // The new state is the latest one
+            
+            // Function to add the current right editor content to history and re-render buttons
+            function updateAndRenderHistory(codeToSave) {
+                // Only add to history if there's actual content
+                if (codeToSave.trim() !== '' && codeToSave.trim() !== '# 修改后的代码将显示在此处') {
+                    versionHistory.push(codeToSave);
+                }
                 renderVersionHistory();
             }
 
+            // Function to render the version history buttons
             function renderVersionHistory() {
                 const historyContainer = document.getElementById('version-history');
-                historyContainer.innerHTML = '<span>历史版本:</span>';
-                
-                // Add button for the current state
-                const currentBtn = document.createElement('button');
-                currentBtn.className = 'version-btn active';
-                currentBtn.textContent = `当前`;
-                currentBtn.onclick = () => {
-                    // Clicking "current" does nothing but stay here
-                    // Or you could reload the latest from history if needed
-                };
-                
+                historyContainer.innerHTML = '<span>历史版本:</span>'; // Clear existing buttons
+
                 // Add buttons for previous versions
-                const historyButtons = versionHistory.map((_, index) => {
+                versionHistory.forEach((versionCode, index) => {
                     const btn = document.createElement('button');
                     btn.className = 'version-btn';
                     btn.textContent = `v${index}`;
                     btn.onclick = () => {
-                        rightEditor.setValue(versionHistory[index]);
+                        rightEditor.setValue(versionCode);
                         // Deactivate all buttons and activate this one
                         document.querySelectorAll('.version-btn').forEach(b => b.classList.remove('active'));
                         btn.classList.add('active');
-                        // Note: we don't change currentVersionIndex here, as we are just viewing.
-                        // A new generation will create a new "current" state.
                     };
-                    return btn;
+                    historyContainer.prepend(btn); // Add to the beginning to show latest on the right
                 });
 
-                // Prepend history buttons, then append the current button
-                historyContainer.append(...historyButtons.reverse());
-                historyContainer.append(currentBtn);
+                // Add button for the current state (always the latest generated or initial)
+                const currentBtn = document.createElement('button');
+                currentBtn.className = 'version-btn active'; // Always active by default
+                currentBtn.textContent = `当前`;
+                currentBtn.onclick = () => {
+                    rightEditor.setValue(leftEditor.getValue()); // "Current" refers to the left editor's content
+                    document.querySelectorAll('.version-btn').forEach(b => b.classList.remove('active'));
+                    currentBtn.classList.add('active');
+                };
+                historyContainer.appendChild(currentBtn);
             }
 
             // --- Panel Resizing ---
@@ -690,9 +767,13 @@ def write_lines(file_path: str, lines: Sequence[str]) -> None:
                 if (!isResizing) return;
                 const containerRect = document.getElementById('container').getBoundingClientRect();
                 let leftWidth = e.clientX - containerRect.left;
-                 if (leftWidth < 300) leftWidth = 300; // Minimum width
-                 if (leftWidth > containerRect.width - 300) leftWidth = containerRect.width - 300; // Minimum width for right panel
+                // Ensure minimum width for both panels
+                if (leftWidth < 300) leftWidth = 300; 
+                if (leftWidth > containerRect.width - 300) leftWidth = containerRect.width - 300; 
                 leftPanel.style.width = `${leftWidth}px`;
+                // Refresh CodeMirror instances to adjust to new panel sizes
+                leftEditor.refresh();
+                rightEditor.refresh();
             }
 
             function onMouseUp() {
@@ -709,12 +790,29 @@ def write_lines(file_path: str, lines: Sequence[str]) -> None:
 
             mainPanelToggle.addEventListener('click', () => {
                 leftPanel.classList.add('collapsed');
+                setTimeout(() => { // Refresh editors after collapse animation
+                    leftEditor.refresh();
+                    rightEditor.refresh();
+                }, var_to_ms('--transition-speed')); // Convert CSS variable to milliseconds
             });
 
             leftPanelToggle.addEventListener('click', () => {
                 leftPanel.classList.remove('collapsed');
+                setTimeout(() => { // Refresh editors after expand animation
+                    leftEditor.refresh();
+                    rightEditor.refresh();
+                }, var_to_ms('--transition-speed'));
             });
 
+            // Helper to convert CSS variable to milliseconds
+            function var_to_ms(cssVar) {
+                const style = getComputedStyle(document.documentElement);
+                const value = style.getPropertyValue(cssVar).trim();
+                if (value.endsWith('s')) {
+                    return parseFloat(value) * 1000;
+                }
+                return parseFloat(value);
+            }
 
             // --- Settings Panel ---
             const settingsToggle = document.getElementById('settings-toggle');
@@ -723,10 +821,12 @@ def write_lines(file_path: str, lines: Sequence[str]) -> None:
             const apiUrlInput = document.getElementById('api-url');
             const apiKeyInput = document.getElementById('api-key');
             
+            // Define API URLs for different models.
+            // For Gemini, the 'key=' parameter is left empty, as the Canvas environment will inject it.
             const apiUrls = {
                 'gpt-4o': 'https://api.openai.com/v1/chat/completions',
                 'deepseek-coder': 'https://api.deepseek.com/chat/completions',
-                'gemini-1.5-pro': `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-pro-latest:generateContent?key=${apiKeyInput.value}`
+                'gemini-1.5-pro': `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-pro-latest:generateContent?key=` // Key will be provided by Canvas runtime
             };
 
             settingsToggle.addEventListener('click', () => {
@@ -734,37 +834,34 @@ def write_lines(file_path: str, lines: Sequence[str]) -> None:
                 settingsPanel.style.display = isHidden ? 'block' : 'none';
             });
             
+            // Update API URL when model selection changes
             modelSelect.addEventListener('change', () => {
                 const selectedModel = modelSelect.value;
                 if (apiUrls[selectedModel]) {
-                    apiUrlInput.value = apiUrls[selectedModel].replace('${apiKeyInput.value}', apiKeyInput.value);
+                    apiUrlInput.value = apiUrls[selectedModel];
+                } else if (selectedModel === 'custom') {
+                    apiUrlInput.value = ''; // Clear for custom
                 }
-            });
-            apiKeyInput.addEventListener('input', () => {
-                 const selectedModel = modelSelect.value;
-                 if (apiUrls[selectedModel]) {
-                    apiUrlInput.value = apiUrls[selectedModel].replace('${apiKeyInput.value}', apiKeyInput.value);
-                }
+                saveSettings();
             });
 
             // Save/Load settings from localStorage
             function saveSettings() {
                 localStorage.setItem('codeEditor_model', modelSelect.value);
                 localStorage.setItem('codeEditor_apiUrl', apiUrlInput.value);
-                localStorage.setItem('codeEditor_apiKey', apiKeyInput.value);
+                localStorage.setItem('codeEditor_apiKey', apiKeyInput.value); // Store API key for non-Gemini models
             }
 
             function loadSettings() {
                 modelSelect.value = localStorage.getItem('codeEditor_model') || 'gpt-4o';
                 apiKeyInput.value = localStorage.getItem('codeEditor_apiKey') || '';
-                apiUrlInput.value = localStorage.getItem('codeEditor_apiUrl') || apiUrls['gpt-4o'];
+                apiUrlInput.value = localStorage.getItem('codeEditor_apiUrl') || apiUrls[modelSelect.value];
             }
             
-            modelSelect.addEventListener('change', saveSettings);
             apiUrlInput.addEventListener('input', saveSettings);
             apiKeyInput.addEventListener('input', saveSettings);
             
-            loadSettings();
+            loadSettings(); // Load settings on initial page load
             
             // --- Buttons ---
             const generateBtn = document.getElementById('generate-btn');
@@ -775,7 +872,7 @@ def write_lines(file_path: str, lines: Sequence[str]) -> None:
                 const originalCode = leftEditor.getValue();
                 
                 if (!userRequest || !originalCode) {
-                    alert("请输入原始代码和您的修改要求。");
+                    showMessageBox("请输入原始代码和您的修改要求。");
                     return;
                 }
                 
@@ -793,7 +890,7 @@ def write_lines(file_path: str, lines: Sequence[str]) -> None:
                         codeLines,
                         modelSelect.value,
                         apiUrlInput.value,
-                        apiKeyInput.value
+                        apiKeyInput.value // Pass API key for non-Gemini models
                     );
                     
                     const applier = new JsAnchorPatchApplier(codeLines);
@@ -807,10 +904,10 @@ def write_lines(file_path: str, lines: Sequence[str]) -> None:
 
                 } catch (error) {
                     console.error(error);
-                    alert(`发生错误: ${error.message}`);
+                    showMessageBox(`发生错误: ${error.message}`);
                     rightEditor.setValue(`# 错误: ${error.message}`);
                     // If there was an error, we should revert the history
-                    versionHistory.pop();
+                    versionHistory.pop(); // Remove the last (erroneous) entry
                     renderVersionHistory();
                 } finally {
                     generateBtn.disabled = false;
@@ -819,16 +916,26 @@ def write_lines(file_path: str, lines: Sequence[str]) -> None:
             });
             
             copyBtn.addEventListener('click', () => {
-                navigator.clipboard.writeText(rightEditor.getValue()).then(() => {
+                // Use document.execCommand('copy') for better compatibility in iframes
+                const textArea = document.createElement('textarea');
+                textArea.value = rightEditor.getValue();
+                document.body.appendChild(textArea);
+                textArea.select();
+                try {
+                    document.execCommand('copy');
                     const originalText = copyBtn.innerHTML;
                     copyBtn.innerHTML = '<i class="fa-solid fa-check"></i> 已复制!';
                     setTimeout(() => {
                         copyBtn.innerHTML = originalText;
                     }, 2000);
-                });
+                } catch (err) {
+                    console.error('无法复制到剪贴板:', err);
+                    showMessageBox('复制失败，请手动复制。');
+                }
+                document.body.removeChild(textArea);
             });
 
-            // Initial render
+            // Initial render of history (empty initially, or with a placeholder)
             renderVersionHistory();
         };
 

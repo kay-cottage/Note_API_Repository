@@ -1,0 +1,513 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>增强版多语言代码分析器</title>
+    <style>
+        /* ======= 全局 ======= */
+        * {margin:0;padding:0;box-sizing:border-box;}
+        body {
+            font-family:'Segoe UI',Tahoma,Geneva,Verdana,sans-serif;
+            background:linear-gradient(135deg,#667eea 0%,#764ba2 100%);
+            min-height:100vh;
+            overflow:hidden;
+        }
+        .container {height:100vh;display:flex;flex-direction:column;background:rgba(255,255,255,.95);backdrop-filter:blur(10px);}        
+        /* ======= 头部 ======= */
+        .header{background:linear-gradient(135deg,#4facfe 0%,#00f2fe 100%);color:#fff;padding:20px 30px;text-align:center;box-shadow:0 2px 10px rgba(0,0,0,.1);}        
+        .header h1{font-size:2em;margin-bottom:5px;text-shadow:2px 2px 4px rgba(0,0,0,.3);}        
+        .header p{font-size:1em;opacity:.9;}        
+        /* ======= 主体 ======= */
+        .main-content{flex:1;display:flex;overflow:hidden;}        
+        /* 左侧面板 */
+        .left-panel{width:60%;display:flex;flex-direction:column;background:#fff;border-right:2px solid #e9ecef;}        
+        .input-controls{padding:20px;background:#f8f9fa;border-bottom:1px solid #e9ecef;}        
+        .control-row{display:flex;gap:15px;margin-bottom:15px;align-items:center;}        
+        .control-group{flex:1;min-width:0;}        
+        .control-label{display:block;font-weight:600;margin-bottom:5px;color:#495057;font-size:.9em;}        
+        .file-input{width:100%;padding:8px 12px;border:2px dashed #007bff;border-radius:8px;background:#fff;cursor:pointer;transition:all .3s ease;font-size:.9em;}
+        .file-input:hover{border-color:#0056b3;background:#f8f9ff;}        
+        .language-select{width:100%;padding:8px 12px;border:2px solid #dee2e6;border-radius:8px;font-size:.9em;background:#fff;cursor:pointer;transition:border-color .3s ease;}
+        .language-select:focus{outline:none;border-color:#007bff;}
+        .analyze-btn{background:linear-gradient(135deg,#667eea 0%,#764ba2 100%);color:#fff;border:none;padding:10px 20px;font-size:.9em;font-weight:600;border-radius:8px;cursor:pointer;transition:all .3s ease;white-space:nowrap;}
+        .analyze-btn:hover{transform:translateY(-1px);box-shadow:0 5px 15px rgba(0,0,0,.2);}        
+        .code-editor-container{flex:1;position:relative;overflow:hidden;}
+        .code-editor{width:100%;height:100%;border:none;padding:20px;font-family:'Consolas','Monaco','Courier New',monospace;font-size:14px;line-height:1.6;background:#1e1e1e;color:#d4d4d4;resize:none;outline:none;tab-size:4;padding-left:70px;}
+        .line-numbers{position:absolute;left:0;top:0;width:50px;height:100%;background:#2d2d2d;color:#858585;font-family:'Consolas','Monaco','Courier New',monospace;font-size:14px;line-height:1.6;padding:20px 5px;user-select:none;overflow:hidden;text-align:right;}
+        /* 右侧面板 */
+        .right-panel{width:40%;display:flex;flex-direction:column;background:#fff;overflow:hidden;}
+        .results-header{padding:20px;background:#f8f9fa;border-bottom:1px solid #e9ecef;display:flex;justify-content:space-between;align-items:center;}
+        .results-count{background:linear-gradient(135deg,#4facfe 0%,#00f2fe 100%);color:#fff;padding:6px 12px;border-radius:15px;font-weight:600;font-size:.9em;}
+        .stats-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:10px;margin-bottom:20px;}
+        .stat-card{background:linear-gradient(135deg,#667eea 0%,#764ba2 100%);color:#fff;padding:15px;border-radius:10px;text-align:center;}
+        .stat-number{font-size:1.5em;font-weight:700;margin-bottom:3px;}
+        .stat-label{font-size:.8em;opacity:.9;}
+        .function-list-container{flex:1;overflow-y:auto;padding:20px;}
+        .function-list{list-style:none;}
+        .function-item{background:#f8f9fa;margin-bottom:12px;padding:15px;border-radius:8px;border-left:4px solid #007bff;transition:all .3s ease;cursor:pointer;position:relative;}
+        .function-item:hover{transform:translateX(3px);box-shadow:0 3px 10px rgba(0,0,0,.1);background:#e9ecef;}
+        .function-item.highlighted{background:#fff3cd;border-left-color:#ffc107;box-shadow:0 3px 10px rgba(255,193,7,.3);}
+        .function-name{font-size:1.1em;font-weight:600;color:#007bff;margin-bottom:8px;display:flex;align-items:center;gap:8px;}
+        .function-location{color:#6c757d;font-family:'Consolas','Monaco','Courier New',monospace;font-size:.85em;margin-bottom:5px;}
+        .function-boundary{color:#28a745;font-family:'Consolas','Monaco','Courier New',monospace;font-size:.85em;margin-bottom:8px;}
+        .function-actions{display:flex;gap:8px;}
+        .action-btn{padding:4px 8px;font-size:.8em;border:none;border-radius:4px;cursor:pointer;transition:all .2s ease;}
+        .jump-btn{background:#007bff;color:#fff;}
+        .jump-btn:hover{background:#0056b3;}
+        .copy-btn{background:#28a745;color:#fff;}
+        .copy-btn:hover{background:#1e7e34;}
+        .error-message{background:#f8d7da;color:#721c24;padding:15px;border-radius:8px;border:1px solid #f5c6cb;margin:20px;text-align:center;}
+        .no-results{text-align:center;color:#6c757d;font-size:1.1em;padding:40px 20px;}
+        .loading{text-align:center;padding:40px 20px;color:#007bff;font-size:1.1em;display:flex;justify-content:center;align-items:center;gap:10px;}
+        .spinner{display:inline-block;width:20px;height:20px;border:3px solid #f3f3f3;border-top:3px solid #007bff;border-radius:50%;animation:spin 1s linear infinite;}
+        @keyframes spin{0%{transform:rotate(0deg);}100%{transform:rotate(360deg);}}
+        .modal{display:none;position:fixed;z-index:1000;left:0;top:0;width:100%;height:100%;background-color:rgba(0,0,0,.5);}        
+        .modal-content{background:#fefefe;margin:15% auto;padding:20px;border-radius:10px;width:80%;max-width:600px;max-height:60vh;overflow-y:auto;}        
+        .modal-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:15px;padding-bottom:10px;border-bottom:1px solid #eee;}        
+        .close{color:#aaa;font-size:28px;font-weight:bold;cursor:pointer;}
+        .close:hover{color:#000;}        
+        .code-preview{background:#1e1e1e;color:#d4d4d4;padding:15px;border-radius:8px;font-family:'Consolas','Monaco','Courier New',monospace;font-size:14px;line-height:1.5;overflow-x:auto;white-space:pre;}        
+        @media(max-width:768px){
+            .main-content{flex-direction:column;}
+            .left-panel,.right-panel{width:100%;height:50%;}
+            .control-row{flex-direction:column;gap:10px;}
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🔍 增强版多语言代码分析器</h1>
+            <p>支持函数边界检测和快速跳转，左右分屏布局</p>
+        </div>
+        <div class="main-content">
+            <!-- ========= 左侧 ========= -->
+            <div class="left-panel">
+                <div class="input-controls">
+                    <div class="control-row">
+                        <div class="control-group">
+                            <label class="control-label">📁 选择文件</label>
+                            <input type="file" id="fileInput" class="file-input" accept=".py,.js,.go,.rs,.html,.htm,.jsx,.ts,.tsx" />
+                        </div>
+                        <div class="control-group">
+                            <label class="control-label">🔧 语言</label>
+                            <select id="languageSelect" class="language-select">
+                                <option value="javascript">JavaScript</option>
+                                <option value="python">Python</option>
+                                <option value="html">HTML</option>
+                                <option value="go">Go</option>
+                                <option value="rust">Rust</option>
+                            </select>
+                        </div>
+                        <div class="control-group">
+                            <label class="control-label">&nbsp;</label>
+                            <button id="analyzeBtn" class="analyze-btn">🚀 分析代码</button>
+                        </div>
+                    </div>
+                </div>
+                <div class="code-editor-container">
+                    <div class="line-numbers" id="lineNumbers"></div>
+                    <textarea id="codeEditor" class="code-editor" placeholder="在这里粘贴您的代码..."></textarea>
+                </div>
+            </div>
+            <!-- ========= 右侧 ========= -->
+            <div class="right-panel">
+                <div class="results-header">
+                    <h3>📊 分析结果</h3>
+                    <div id="resultsCount" class="results-count">0 个函数</div>
+                </div>
+                <div class="function-list-container">
+                    <div id="statsGrid" class="stats-grid"></div>
+                    <div id="functionList" class="function-list"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ===== 模态框 ===== -->
+    <div id="codeModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h4 id="modalTitle">函数代码预览</h4>
+                <span class="close" id="closeModal">&times;</span>
+            </div>
+            <div id="modalCode" class="code-preview"></div>
+        </div>
+    </div>
+
+    <script>
+        /* ----------------- 语言配置 ----------------- */
+        const LANG_CONFIG = {
+            python:{name:'Python',extensions:['.py'],keywords:['def ','class ','async def '],indentBased:true},
+            javascript:{name:'JavaScript',extensions:['.js','.jsx','.ts','.tsx'],keywords:['function ','class ','=>'],indentBased:false},
+            go:{name:'Go',extensions:['.go'],keywords:['func '],indentBased:false},
+            rust:{name:'Rust',extensions:['.rs'],keywords:['fn ','impl'],indentBased:false},
+            html:{name:'HTML',extensions:['.html','.htm'],keywords:['function ','class ','=>'],indentBased:false}
+        };
+
+        /* ----------------- DOM 引用 ----------------- */
+        const fileInput      = document.getElementById('fileInput');
+        const codeEditor     = document.getElementById('codeEditor');
+        const lineNumbers    = document.getElementById('lineNumbers');
+        const languageSelect = document.getElementById('languageSelect');
+        const analyzeBtn     = document.getElementById('analyzeBtn');
+        const resultsCount   = document.getElementById('resultsCount');
+        const statsGrid      = document.getElementById('statsGrid');
+        const functionList   = document.getElementById('functionList');
+        const codeModal      = document.getElementById('codeModal');
+        const modalTitle     = document.getElementById('modalTitle');
+        const modalCode      = document.getElementById('modalCode');
+        const closeModal     = document.getElementById('closeModal');
+
+        /* ----------------- 状态 ----------------- */
+        let currentFunctions = [];
+        let codeLines        = [];
+
+        /* ----------------- 初始化 ----------------- */
+        window.addEventListener('DOMContentLoaded', init);
+
+        function init(){
+            codeEditor.value = getSampleCode();
+            updateLineNumbers();
+            languageSelect.value = 'python';
+        }
+
+        /* ----------------- 行号更新 ----------------- */
+        function updateLineNumbers(){
+            const lines = codeEditor.value.split('\n');
+            codeLines   = lines;
+            let nums    = '';
+            for(let i=1;i<=lines.length;i++) nums += i + '\n';
+            lineNumbers.textContent = nums;
+        }
+
+        /* ----------------- 示例代码 ----------------- */
+        function getSampleCode(){
+            return `# Python 示例代码
+
+def hello_world():
+    """打印Hello World"""
+    print("Hello, World!")
+    return "Hello, World!"
+
+class Calculator:
+    """简单的计算器类"""
+    def __init__(self):
+        self.result = 0
+    
+    def add(self, x, y):
+        """加法运算"""
+        return x + y
+    
+    def multiply(self, x, y):
+        """乘法运算"""
+        return x * y
+    
+    def divide(self, x, y):
+        """除法运算"""
+        if y == 0:
+            raise ValueError("除数不能为零")
+        return x / y
+
+def factorial(n):
+    """计算阶乘"""
+    if n <= 1:
+        return 1
+    return n * factorial(n - 1)
+
+def main():
+    """主函数"""
+    calc = Calculator()
+    print(f"5 + 3 = {calc.add(5, 3)}")
+    print(f"5 * 3 = {calc.multiply(5, 3)}")
+    print(f"5! = {factorial(5)}")
+    hello_world()
+
+if __name__ == "__main__":
+    main()`;
+        }
+
+        /* ----------------- 事件监听 ----------------- */
+        fileInput.addEventListener('change',e=>{
+            const file = e.target.files[0];
+            if(!file) return;
+            const reader = new FileReader();
+            reader.onload = ev=>{
+                codeEditor.value = ev.target.result;
+                updateLineNumbers();
+                // 根据扩展名检测语言
+                const ext = '.' + file.name.split('.').pop().toLowerCase();
+                for(const lang in LANG_CONFIG){
+                    if(LANG_CONFIG[lang].extensions.includes(ext)){
+                        languageSelect.value = lang;
+                        break;
+                    }
+                }
+            };
+            reader.readAsText(file);
+        });
+
+        codeEditor.addEventListener('input',updateLineNumbers);
+        codeEditor.addEventListener('scroll',()=>{lineNumbers.scrollTop = codeEditor.scrollTop;});
+
+        analyzeBtn.addEventListener('click',()=>{
+            const code = codeEditor.value.trim();
+            const lang = languageSelect.value;
+            if(!code){
+                showError('请输入代码或上传文件');
+                return;
+            }
+            showLoading();
+            // 模拟异步分析
+            setTimeout(()=>{
+                try{
+                    const funcs = extractFunctionsWithBoundaries(code,lang);
+                    currentFunctions = funcs;
+                    displayResults(funcs,lang);
+                }catch(err){
+                    showError('代码分析失败：'+err.message);
+                }
+            },100);
+        });
+
+        closeModal.addEventListener('click',()=>codeModal.style.display='none');
+        window.addEventListener('click',e=>{if(e.target===codeModal) codeModal.style.display='none';});
+
+        /* ----------------- UI 辅助 ----------------- */
+        function showLoading(){
+            resultsCount.textContent = '分析中...';
+            statsGrid.innerHTML = '';
+            functionList.innerHTML = '<div class="loading"><span class="spinner"></span>正在分析...</div>';
+        }
+        function showError(msg){
+            resultsCount.textContent = '0 个函数';
+            statsGrid.innerHTML = '';
+            functionList.innerHTML = `<div class="error-message">${msg}</div>`;
+        }
+
+        function displayResults(funcs,lang){
+            resultsCount.textContent = `${funcs.length} 个函数`;
+            if(funcs.length===0){
+                statsGrid.innerHTML = '';
+                functionList.innerHTML = '<div class="no-results">未找到任何函数</div>';
+                return;
+            }
+            /* ---- 统计卡片 ---- */
+            const totalLines = codeLines.length;
+            const avgLen     = Math.round(funcs.reduce((sum,f)=>sum+(f.endLine-f.startLine+1),0)/funcs.length);
+            statsGrid.innerHTML = `
+                <div class="stat-card"><div class="stat-number">${funcs.length}</div><div class="stat-label">函数数量</div></div>
+                <div class="stat-card"><div class="stat-number">${totalLines}</div><div class="stat-label">代码行数</div></div>
+                <div class="stat-card"><div class="stat-number">${avgLen}</div><div class="stat-label">平均函数行数</div></div>
+                <div class="stat-card"><div class="stat-number">${lang.toUpperCase()}</div><div class="stat-label">语言</div></div>`;
+            /* ---- 列表 ---- */
+            functionList.innerHTML = '';
+            funcs.forEach(func=>{
+                const item    = document.createElement('div');
+                item.className= 'function-item';
+                item.innerHTML = `
+                    <div class="function-name">${func.name}</div>
+                    <div class="function-location">Lines ${func.startLine} - ${func.endLine}</div>
+                    <div class="function-boundary">${func.type}</div>
+                    <div class="function-actions">
+                        <button class="action-btn jump-btn">跳转</button>
+                        <button class="action-btn copy-btn">复制</button>
+                    </div>`;
+                /* -- 跳转 -- */
+                item.querySelector('.jump-btn').addEventListener('click',()=>{
+                    scrollToLine(func.startLine);
+                });
+                /* -- 复制 -- */
+                item.querySelector('.copy-btn').addEventListener('click',()=>copyFunctionCode(func));
+                /* -- 双击预览 -- */
+                item.addEventListener('dblclick',()=>openModal(func));
+                functionList.appendChild(item);
+            });
+        }
+
+        function scrollToLine(lineNumber){
+            const lines = codeEditor.value.split('\n');
+            let pos = 0;
+            for(let i=0;i<lineNumber-1;i++) pos += lines[i].length+1;
+            codeEditor.focus();
+            codeEditor.setSelectionRange(pos,pos);
+            const lineHeight = parseFloat(getComputedStyle(codeEditor).lineHeight);
+            codeEditor.scrollTop = (lineNumber-1)*lineHeight;
+            lineNumbers.scrollTop = codeEditor.scrollTop;
+        }
+
+        function copyFunctionCode(func){
+            const code = codeLines.slice(func.startLine-1,func.endLine).join('\n');
+            navigator.clipboard.writeText(code).then(()=>{
+                alert('已复制函数代码到剪贴板');
+            }).catch(()=>alert('复制失败，您的浏览器可能不支持 Clipboard API'));
+        }
+
+        function openModal(func){
+            modalTitle.textContent = `${func.type === 'class' ? '类' : '函数'}：${func.name}`;
+            modalCode.textContent = codeLines.slice(func.startLine-1,func.endLine).join('\n');
+            codeModal.style.display = 'block';
+        }
+
+        /* ----------------- 函数提取核心 ----------------- */
+        function extractFunctionsWithBoundaries(code,language){
+            const functions = [];
+            const lines     = code.split('\n');
+            const config    = LANG_CONFIG[language];
+            for(let i=0;i<lines.length;i++){
+                const line = lines[i].trim();
+                if(language==='python'){
+                    if(line.startsWith('def ')||line.startsWith('class ')||line.startsWith('async def ')){
+                        const f = extractPythonFunction(lines,i,line);
+                        if(f) functions.push(f);
+                    }
+                }else if(['javascript','html'].includes(language)){
+                    if(line.includes('function ')||line.includes('class ')||line.includes('=>')){
+                        const f = extractJavaScriptFunction(lines,i,line);
+                        if(f) functions.push(f);
+                    }
+                }else if(language==='go'){
+                    if(line.includes('func ')){
+                        const f = extractGoFunction(lines,i,line);
+                        if(f) functions.push(f);
+                    }
+                }else if(language==='rust'){
+                    if(line.includes('fn ')||line.includes('impl')){
+                        const f = extractRustFunction(lines,i,line);
+                        if(f) functions.push(f);
+                    }
+                }
+            }
+            return functions;
+        }
+
+        /* ---- Python ---- */
+        function extractPythonFunction(lines,startIndex,line){
+            let name='',type='function';
+            if(line.startsWith('def ')||line.startsWith('async def ')){
+                const start = line.indexOf('def ') + 4;
+                const end   = line.indexOf('(',start);
+                if(end>start) name = line.substring(start,end).trim();
+                type = line.startsWith('async')? 'async_function':'function';
+            }else if(line.startsWith('class ')){
+                const start = line.indexOf('class ')+6;
+                let end     = line.indexOf('(',start);
+                if(end===-1) end = line.indexOf(':',start);
+                if(end===-1) end = line.length;
+                if(end>start) name = line.substring(start,end).trim();
+                type='class';
+            }
+            if(!name) return null;
+            const startLine = startIndex+1;
+            const baseIndent= lines[startIndex].length - lines[startIndex].trimStart().length;
+            let endLine     = startLine;
+            for(let i=startIndex+1;i<lines.length;i++){
+                const current = lines[i];
+                if(current.trim()==='') continue;
+                const indent = current.length - current.trimStart().length;
+                if(indent<=baseIndent){endLine = i;break;}
+                endLine = i+1;
+            }
+            return {name,startLine,endLine,startCol:baseIndent+1,endCol:lines[endLine-1]?lines[endLine-1].length:0,type};
+        }
+
+        /* ---- JavaScript/HTML ---- */
+        function extractJavaScriptFunction(lines,startIndex,line){
+            let name='',type='function';
+            if(line.includes('function ')){
+                const idx = line.indexOf('function ')+9;
+                const end = line.indexOf('(',idx);
+                if(end>idx) name = line.substring(idx,end).trim();
+            }else if(line.includes('class ')){
+                const idx = line.indexOf('class ')+6;
+                let end   = line.indexOf(' ',idx);
+                if(end===-1) end = line.indexOf('{',idx);
+                if(end===-1) end = line.length;
+                if(end>idx) name = line.substring(idx,end).trim();
+                type='class';
+            }else if(line.includes('=>')){
+                const arrowIdx = line.indexOf('=>');
+                const before   = line.substring(0,arrowIdx).trim();
+                const eqIdx    = before.lastIndexOf('=');
+                if(eqIdx>=0){
+                    name = before.substring(0,eqIdx).trim();
+                    if(name.includes(' ')) name = name.split(' ').pop();
+                }
+                type='arrow';
+            }
+            if(!name) return null;
+            const startLine = startIndex+1;
+            let endLine = startLine;
+            let braceCount=0,foundOpen=false;
+            for(let i=startIndex;i<lines.length;i++){
+                const curr=lines[i];
+                for(let ch of curr){
+                    if(ch==='{' ){braceCount++;foundOpen=true;}
+                    else if(ch==='}'){
+                        braceCount--;if(foundOpen&&braceCount===0){endLine=i+1;break;}
+                    }
+                }
+                if(foundOpen&&braceCount===0) break;
+                endLine = i+1;
+            }
+            return {name,startLine,endLine,startCol:1,endCol:lines[endLine-1]?lines[endLine-1].length:0,type};
+        }
+
+        /* ---- Go ---- */
+        function extractGoFunction(lines,startIndex,line){
+            const idx = line.indexOf('func ')+5;
+            const end = line.indexOf('(',idx);
+            if(end<=idx) return null;
+            const name = line.substring(idx,end).trim();
+            const startLine=startIndex+1;
+            let endLine=startLine,braceCount=0,foundOpen=false;
+            for(let i=startIndex;i<lines.length;i++){
+                const curr=lines[i];
+                for(let ch of curr){
+                    if(ch==='{' ){braceCount++;foundOpen=true;}
+                    else if(ch==='}'){
+                        braceCount--;if(foundOpen&&braceCount===0){endLine=i+1;break;}
+                    }
+                }
+                if(foundOpen&&braceCount===0) break;
+                endLine=i+1;
+            }
+            return {name,startLine,endLine,startCol:1,endCol:lines[endLine-1]?lines[endLine-1].length:0,type:'function'};
+        }
+
+        /* ---- Rust ---- */
+        function extractRustFunction(lines,startIndex,line){
+            let name='',type='function';
+            if(line.includes('fn ')){
+                const idx = line.indexOf('fn ')+3;
+                let end   = line.indexOf('(',idx);
+                if(end===-1) end = line.indexOf('<',idx);
+                if(end===-1) end = line.length;
+                name = line.substring(idx,end).trim();
+            }else if(line.includes('impl')){
+                type='impl';
+                const idx=line.indexOf('impl')+4;
+                let end=line.indexOf('{',idx);
+                if(end===-1) end=line.length;
+                name=line.substring(idx,end).trim();
+            }
+            if(!name) return null;
+            const startLine=startIndex+1;
+            let endLine=startLine,braceCount=0,foundOpen=false;
+            for(let i=startIndex;i<lines.length;i++){
+                const curr=lines[i];
+                for(let ch of curr){
+                    if(ch==='{' ){braceCount++;foundOpen=true;}
+                    else if(ch==='}'){
+                        braceCount--;if(foundOpen&&braceCount===0){endLine=i+1;break;}
+                    }
+                }
+                if(foundOpen&&braceCount===0) break;
+                endLine=i+1;
+            }
+            return {name,startLine,endLine,startCol:1,endCol:lines[endLine-1]?lines[endLine-1].length:0,type};
+        }
+    </script>
+</body>
+</html>

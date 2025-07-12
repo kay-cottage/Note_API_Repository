@@ -311,52 +311,32 @@
     </div>
 
     <script>
-        // 语言配置
+        // 语言配置 - 使用简单的字符串匹配，避免正则表达式问题
         const LANG_CONFIG = {
             python: {
                 name: 'Python',
                 extensions: ['.py'],
-                functionPatterns: [
-                    {pattern: 'def\\s+([a-zA-Z_][a-zA-Z0-9_]*)\\s*\\(', flags: 'g'},
-                    {pattern: 'class\\s+([a-zA-Z_][a-zA-Z0-9_]*)\\s*[\\(:]?', flags: 'g'}
-                ]
+                keywords: ['def ', 'class ']
             },
             javascript: {
                 name: 'JavaScript',
                 extensions: ['.js', '.jsx', '.ts', '.tsx'],
-                functionPatterns: [
-                    {pattern: 'function\\s+([a-zA-Z_$][a-zA-Z0-9_$]*)\\s*\\(', flags: 'g'},
-                    {pattern: '([a-zA-Z_$][a-zA-Z0-9_$]*)\\s*:\\s*function\\s*\\(', flags: 'g'},
-                    {pattern: '([a-zA-Z_$][a-zA-Z0-9_$]*)\\s*=>\\s*\\{?', flags: 'g'},
-                    {pattern: '([a-zA-Z_$][a-zA-Z0-9_$]*)\\s*=\\s*function\\s*\\(', flags: 'g'},
-                    {pattern: 'class\\s+([a-zA-Z_$][a-zA-Z0-9_$]*)', flags: 'g'},
-                    {pattern: '([a-zA-Z_$][a-zA-Z0-9_$]*)\\s*\\([^)]*\\)\\s*\\{', flags: 'g'}
-                ]
+                keywords: ['function ', 'class ', '=>']
             },
             go: {
                 name: 'Go',
                 extensions: ['.go'],
-                functionPatterns: [
-                    {pattern: 'func\\s+([a-zA-Z_][a-zA-Z0-9_]*)\\s*\\(', flags: 'g'},
-                    {pattern: 'func\\s*\\([^)]*\\)\\s*([a-zA-Z_][a-zA-Z0-9_]*)\\s*\\(', flags: 'g'}
-                ]
+                keywords: ['func ']
             },
             rust: {
                 name: 'Rust',
                 extensions: ['.rs'],
-                functionPatterns: [
-                    {pattern: 'fn\\s+([a-zA-Z_][a-zA-Z0-9_]*)\\s*\\(', flags: 'g'},
-                    {pattern: 'impl.*\\{\\s*fn\\s+([a-zA-Z_][a-zA-Z0-9_]*)\\s*\\(', flags: 'g'}
-                ]
+                keywords: ['fn ', 'impl']
             },
             html: {
                 name: 'HTML',
                 extensions: ['.html', '.htm'],
-                functionPatterns: [
-                    {pattern: 'function\\s+([a-zA-Z_$][a-zA-Z0-9_$]*)\\s*\\(', flags: 'g'},
-                    {pattern: '([a-zA-Z_$][a-zA-Z0-9_$]*)\\s*:\\s*function\\s*\\(', flags: 'g'},
-                    {pattern: '([a-zA-Z_$][a-zA-Z0-9_$]*)\\s*=>\\s*\\{?', flags: 'g'}
-                ]
+                keywords: ['function ', 'class ', '=>']
             }
         };
 
@@ -379,8 +359,8 @@
                     codeInput.value = e.target.result;
                     // 自动检测语言
                     const ext = '.' + file.name.split('.').pop().toLowerCase();
-                    for (const [lang, config] of Object.entries(LANG_CONFIG)) {
-                        if (config.extensions.includes(ext)) {
+                    for (const lang in LANG_CONFIG) {
+                        if (LANG_CONFIG[lang].extensions.includes(ext)) {
                             languageSelect.value = lang;
                             break;
                         }
@@ -403,7 +383,7 @@
             showLoading();
             
             // 模拟异步处理
-            setTimeout(() => {
+            setTimeout(function() {
                 try {
                     const functions = extractFunctions(code, language);
                     displayResults(functions, language);
@@ -413,104 +393,211 @@
             }, 500);
         });
 
-        // 提取函数
+        // 简单的函数提取方法 - 使用字符串匹配避免正则表达式问题
         function extractFunctions(code, language) {
-            const config = LANG_CONFIG[language];
             const functions = [];
             const lines = code.split('\n');
+            const config = LANG_CONFIG[language];
             
-            // 处理HTML中的脚本
-            if (language === 'html') {
-                const scriptRegex = new RegExp('<script[^>]*>([\\s\\S]*?)<\\/script>', 'gi');
-                let scriptMatch;
-                while ((scriptMatch = scriptRegex.exec(code)) !== null) {
-                    const scriptContent = scriptMatch[1];
-                    const scriptFunctions = extractJSFunctions(scriptContent);
-                    functions.push(...scriptFunctions);
-                }
-            } else {
-                // 处理其他语言
-                config.functionPatterns.forEach(patternConfig => {
-                    const regex = new RegExp(patternConfig.pattern, patternConfig.flags);
-                    let match;
-                    while ((match = regex.exec(code)) !== null) {
-                        const functionName = match[1];
-                        const position = getLinePosition(code, match.index);
-                        
-                        if (functionName && functionName.length > 0) {
+            for (let i = 0; i < lines.length; i++) {
+                const line = lines[i].trim();
+                const lineNumber = i + 1;
+                
+                // 检查每种语言的关键字
+                if (language === 'python') {
+                    if (line.indexOf('def ') === 0) {
+                        const name = extractPythonFunctionName(line);
+                        if (name) {
                             functions.push({
-                                name: functionName,
-                                startLine: position.line,
-                                startCol: position.column,
-                                endLine: position.line,
-                                endCol: position.column + match[0].length,
-                                type: detectFunctionType(match[0])
+                                name: name,
+                                startLine: lineNumber,
+                                startCol: 1,
+                                endLine: lineNumber,
+                                endCol: line.length,
+                                type: 'function'
+                            });
+                        }
+                    } else if (line.indexOf('class ') === 0) {
+                        const name = extractPythonClassName(line);
+                        if (name) {
+                            functions.push({
+                                name: name,
+                                startLine: lineNumber,
+                                startCol: 1,
+                                endLine: lineNumber,
+                                endCol: line.length,
+                                type: 'class'
                             });
                         }
                     }
-                });
-            }
-            
-            // 去重并排序
-            const uniqueFunctions = Array.from(new Map(
-                functions.map(f => [`${f.name}-${f.startLine}`, f])
-            ).values());
-            
-            return uniqueFunctions.sort((a, b) => a.startLine - b.startLine);
-        }
-
-        // 提取JavaScript函数
-        function extractJSFunctions(code) {
-            const functions = [];
-            const jsPatterns = [
-                {pattern: 'function\\s+([a-zA-Z_$][a-zA-Z0-9_$]*)\\s*\\(', flags: 'g'},
-                {pattern: '([a-zA-Z_$][a-zA-Z0-9_$]*)\\s*:\\s*function\\s*\\(', flags: 'g'},
-                {pattern: '([a-zA-Z_$][a-zA-Z0-9_$]*)\\s*=>\\s*\\{?', flags: 'g'},
-                {pattern: '([a-zA-Z_$][a-zA-Z0-9_$]*)\\s*=\\s*function\\s*\\(', flags: 'g'},
-                {pattern: 'class\\s+([a-zA-Z_$][a-zA-Z0-9_$]*)', flags: 'g'}
-            ];
-            
-            jsPatterns.forEach(patternConfig => {
-                const regex = new RegExp(patternConfig.pattern, patternConfig.flags);
-                let match;
-                while ((match = regex.exec(code)) !== null) {
-                    const functionName = match[1];
-                    const position = getLinePosition(code, match.index);
-                    
-                    if (functionName && functionName.length > 0) {
-                        functions.push({
-                            name: functionName,
-                            startLine: position.line,
-                            startCol: position.column,
-                            endLine: position.line,
-                            endCol: position.column + match[0].length,
-                            type: 'function'
-                        });
+                } else if (language === 'javascript') {
+                    if (line.indexOf('function ') >= 0) {
+                        const name = extractJSFunctionName(line);
+                        if (name) {
+                            functions.push({
+                                name: name,
+                                startLine: lineNumber,
+                                startCol: 1,
+                                endLine: lineNumber,
+                                endCol: line.length,
+                                type: 'function'
+                            });
+                        }
+                    } else if (line.indexOf('class ') >= 0) {
+                        const name = extractJSClassName(line);
+                        if (name) {
+                            functions.push({
+                                name: name,
+                                startLine: lineNumber,
+                                startCol: 1,
+                                endLine: lineNumber,
+                                endCol: line.length,
+                                type: 'class'
+                            });
+                        }
+                    } else if (line.indexOf('=>') >= 0) {
+                        const name = extractArrowFunctionName(line);
+                        if (name) {
+                            functions.push({
+                                name: name,
+                                startLine: lineNumber,
+                                startCol: 1,
+                                endLine: lineNumber,
+                                endCol: line.length,
+                                type: 'arrow'
+                            });
+                        }
+                    }
+                } else if (language === 'go') {
+                    if (line.indexOf('func ') >= 0) {
+                        const name = extractGoFunctionName(line);
+                        if (name) {
+                            functions.push({
+                                name: name,
+                                startLine: lineNumber,
+                                startCol: 1,
+                                endLine: lineNumber,
+                                endCol: line.length,
+                                type: 'function'
+                            });
+                        }
+                    }
+                } else if (language === 'rust') {
+                    if (line.indexOf('fn ') >= 0) {
+                        const name = extractRustFunctionName(line);
+                        if (name) {
+                            functions.push({
+                                name: name,
+                                startLine: lineNumber,
+                                startCol: 1,
+                                endLine: lineNumber,
+                                endCol: line.length,
+                                type: 'function'
+                            });
+                        }
+                    }
+                } else if (language === 'html') {
+                    // 处理HTML中的JavaScript
+                    if (line.indexOf('function ') >= 0) {
+                        const name = extractJSFunctionName(line);
+                        if (name) {
+                            functions.push({
+                                name: name,
+                                startLine: lineNumber,
+                                startCol: 1,
+                                endLine: lineNumber,
+                                endCol: line.length,
+                                type: 'function'
+                            });
+                        }
                     }
                 }
-            });
+            }
             
             return functions;
         }
 
-        // 获取行列位置
-        function getLinePosition(code, index) {
-            const lines = code.substring(0, index).split('\n');
-            return {
-                line: lines.length,
-                column: lines[lines.length - 1].length + 1
-            };
+        // 提取Python函数名
+        function extractPythonFunctionName(line) {
+            const start = line.indexOf('def ') + 4;
+            const end = line.indexOf('(', start);
+            if (end > start) {
+                return line.substring(start, end).trim();
+            }
+            return null;
         }
 
-        // 检测函数类型
-        function detectFunctionType(matchStr) {
-            if (matchStr.includes('class')) return 'class';
-            if (matchStr.includes('function')) return 'function';
-            if (matchStr.includes('=>')) return 'arrow';
-            if (matchStr.includes('def')) return 'function';
-            if (matchStr.includes('func')) return 'function';
-            if (matchStr.includes('fn')) return 'function';
-            return 'function';
+        // 提取Python类名
+        function extractPythonClassName(line) {
+            const start = line.indexOf('class ') + 6;
+            let end = line.indexOf('(', start);
+            if (end === -1) end = line.indexOf(':', start);
+            if (end === -1) end = line.length;
+            if (end > start) {
+                return line.substring(start, end).trim();
+            }
+            return null;
+        }
+
+        // 提取JavaScript函数名
+        function extractJSFunctionName(line) {
+            const funcIndex = line.indexOf('function ');
+            if (funcIndex >= 0) {
+                const start = funcIndex + 9;
+                const end = line.indexOf('(', start);
+                if (end > start) {
+                    return line.substring(start, end).trim();
+                }
+            }
+            return null;
+        }
+
+        // 提取JavaScript类名
+        function extractJSClassName(line) {
+            const start = line.indexOf('class ') + 6;
+            let end = line.indexOf(' ', start);
+            if (end === -1) end = line.indexOf('{', start);
+            if (end === -1) end = line.length;
+            if (end > start) {
+                return line.substring(start, end).trim();
+            }
+            return null;
+        }
+
+        // 提取箭头函数名
+        function extractArrowFunctionName(line) {
+            const arrowIndex = line.indexOf('=>');
+            if (arrowIndex > 0) {
+                const beforeArrow = line.substring(0, arrowIndex).trim();
+                const equalIndex = beforeArrow.lastIndexOf('=');
+                if (equalIndex >= 0) {
+                    const name = beforeArrow.substring(0, equalIndex).trim();
+                    if (name.indexOf(' ') === -1 && name.length > 0) {
+                        return name;
+                    }
+                }
+            }
+            return null;
+        }
+
+        // 提取Go函数名
+        function extractGoFunctionName(line) {
+            const start = line.indexOf('func ') + 5;
+            const end = line.indexOf('(', start);
+            if (end > start) {
+                return line.substring(start, end).trim();
+            }
+            return null;
+        }
+
+        // 提取Rust函数名
+        function extractRustFunctionName(line) {
+            const start = line.indexOf('fn ') + 3;
+            const end = line.indexOf('(', start);
+            if (end > start) {
+                return line.substring(start, end).trim();
+            }
+            return null;
         }
 
         // 显示结果
@@ -524,52 +611,59 @@
                 return;
             }
 
-            resultsCount.textContent = `${functions.length} 个函数`;
+            resultsCount.textContent = functions.length + ' 个函数';
             
             // 显示统计信息
             displayStats(functions, language);
             
             // 显示函数列表
-            functionList.innerHTML = functions.map((func, index) => `
-                <div class="function-item">
-                    <div class="function-name">
-                        ${getFunctionIcon(func.type)} ${func.name}
-                    </div>
-                    <div class="function-location">
-                        📍 位置: 第 ${func.startLine} 行, 第 ${func.startCol} 列
-                        ${func.endLine !== func.startLine ? ` - 第 ${func.endLine} 行, 第 ${func.endCol} 列` : ''}
-                    </div>
-                </div>
-            `).join('');
+            let html = '';
+            for (let i = 0; i < functions.length; i++) {
+                const func = functions[i];
+                html += '<div class="function-item">';
+                html += '<div class="function-name">';
+                html += getFunctionIcon(func.type) + ' ' + func.name;
+                html += '</div>';
+                html += '<div class="function-location">';
+                html += '📍 位置: 第 ' + func.startLine + ' 行, 第 ' + func.startCol + ' 列';
+                html += '</div>';
+                html += '</div>';
+            }
+            functionList.innerHTML = html;
         }
 
         // 显示统计信息
         function displayStats(functions, language) {
             const stats = {
                 total: functions.length,
-                functions: functions.filter(f => f.type === 'function').length,
-                classes: functions.filter(f => f.type === 'class').length,
-                arrows: functions.filter(f => f.type === 'arrow').length
+                functions: 0,
+                classes: 0,
+                arrows: 0
             };
 
-            statsGrid.innerHTML = `
-                <div class="stat-card">
-                    <div class="stat-number">${stats.total}</div>
-                    <div class="stat-label">总计</div>
-                </div>
-                <div class="stat-card">
-                    <div class="stat-number">${stats.functions}</div>
-                    <div class="stat-label">函数</div>
-                </div>
-                <div class="stat-card">
-                    <div class="stat-number">${stats.classes}</div>
-                    <div class="stat-label">类</div>
-                </div>
-                <div class="stat-card">
-                    <div class="stat-number">${LANG_CONFIG[language].name}</div>
-                    <div class="stat-label">语言</div>
-                </div>
-            `;
+            for (let i = 0; i < functions.length; i++) {
+                if (functions[i].type === 'function') stats.functions++;
+                else if (functions[i].type === 'class') stats.classes++;
+                else if (functions[i].type === 'arrow') stats.arrows++;
+            }
+
+            statsGrid.innerHTML = 
+                '<div class="stat-card">' +
+                '<div class="stat-number">' + stats.total + '</div>' +
+                '<div class="stat-label">总计</div>' +
+                '</div>' +
+                '<div class="stat-card">' +
+                '<div class="stat-number">' + stats.functions + '</div>' +
+                '<div class="stat-label">函数</div>' +
+                '</div>' +
+                '<div class="stat-card">' +
+                '<div class="stat-number">' + stats.classes + '</div>' +
+                '<div class="stat-label">类</div>' +
+                '</div>' +
+                '<div class="stat-card">' +
+                '<div class="stat-number">' + LANG_CONFIG[language].name + '</div>' +
+                '<div class="stat-label">语言</div>' +
+                '</div>';
         }
 
         // 获取函数图标
@@ -585,12 +679,11 @@
         // 显示加载状态
         function showLoading() {
             resultsSection.style.display = 'block';
-            functionList.innerHTML = `
-                <div class="loading">
-                    <div class="spinner"></div>
-                    正在分析代码，请稍候...
-                </div>
-            `;
+            functionList.innerHTML = 
+                '<div class="loading">' +
+                '<div class="spinner"></div>' +
+                '正在分析代码，请稍候...' +
+                '</div>';
             resultsCount.textContent = '';
             statsGrid.innerHTML = '';
         }
@@ -598,36 +691,32 @@
         // 显示错误
         function showError(message) {
             resultsSection.style.display = 'block';
-            functionList.innerHTML = `
-                <div class="error-message">
-                    ❌ ${message}
-                </div>
-            `;
+            functionList.innerHTML = 
+                '<div class="error-message">' +
+                '❌ ' + message +
+                '</div>';
             resultsCount.textContent = '';
             statsGrid.innerHTML = '';
         }
 
         // 初始化示例代码
-        codeInput.value = `# Python 示例代码
-def hello_world():
-    print("Hello, World!")
-
-class Calculator:
-    def __init__(self):
-        self.result = 0
-    
-    def add(self, x, y):
-        return x + y
-    
-    def multiply(self, x, y):
-        return x * y
-
-def main():
-    calc = Calculator()
-    print(calc.add(5, 3))
-
-if __name__ == "__main__":
-    main()`;
+        codeInput.value = '# Python 示例代码\n' +
+            'def hello_world():\n' +
+            '    print("Hello, World!")\n\n' +
+            'class Calculator:\n' +
+            '    def __init__(self):\n' +
+            '        self.result = 0\n' +
+            '    \n' +
+            '    def add(self, x, y):\n' +
+            '        return x + y\n' +
+            '    \n' +
+            '    def multiply(self, x, y):\n' +
+            '        return x * y\n\n' +
+            'def main():\n' +
+            '    calc = Calculator()\n' +
+            '    print(calc.add(5, 3))\n\n' +
+            'if __name__ == "__main__":\n' +
+            '    main()';
     </script>
 </body>
 </html>

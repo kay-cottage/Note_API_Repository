@@ -29,10 +29,11 @@
     <pre id="out"></pre>
   </div>
 
+  <!-- 引入 Web Tree-sitter -->
   <script src="https://cdn.jsdelivr.net/npm/web-tree-sitter@0.20.0/dist/tree-sitter.min.js"></script>
   <script>
     (async () => {
-      const { Parser, Language } = window.TreeSitter;
+      const { Parser, Language } = TreeSitter;
       await Parser.init({
         locateFile: file =>
           `https://cdn.jsdelivr.net/npm/web-tree-sitter@0.20.0/dist/${file}`
@@ -50,7 +51,7 @@
         return parsers[lang];
       }
 
-      document.getElementById('run').onclick = async () => {
+      document.getElementById('run').addEventListener('click', async () => {
         const lang = document.getElementById('lang').value;
         const code = document.getElementById('code').value;
         const parser = await getParser(lang);
@@ -73,7 +74,7 @@
         })(tree.rootNode);
         document.getElementById('out').textContent =
           funcs.length ? funcs.join('\n') : '未发现任何函数';
-      };
+      });
     })();
   </script>
 </body>

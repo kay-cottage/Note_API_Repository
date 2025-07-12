@@ -1,81 +1,627 @@
 <!DOCTYPE html>
 <html lang="zh-CN">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>在线函数提取器</title>
-  <style>
-    body { font-family: sans-serif; padding: 1rem; }
-    textarea { width: 100%; height: 200px; font-family: monospace; }
-    pre { background: #f4f4f4; padding: 0.5rem; }
-    .output { margin-top: 1rem; }
-  </style>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>多语言代码分析器</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+        
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            background: rgba(255, 255, 255, 0.95);
+            border-radius: 20px;
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.1);
+            backdrop-filter: blur(10px);
+            overflow: hidden;
+        }
+        
+        .header {
+            background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
+            color: white;
+            padding: 30px;
+            text-align: center;
+        }
+        
+        .header h1 {
+            font-size: 2.5em;
+            margin-bottom: 10px;
+            text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.3);
+        }
+        
+        .header p {
+            font-size: 1.2em;
+            opacity: 0.9;
+        }
+        
+        .main-content {
+            padding: 30px;
+        }
+        
+        .input-section {
+            background: #f8f9fa;
+            border-radius: 15px;
+            padding: 25px;
+            margin-bottom: 30px;
+            border: 2px solid #e9ecef;
+        }
+        
+        .file-input-group {
+            margin-bottom: 20px;
+        }
+        
+        .file-input-label {
+            display: block;
+            font-weight: 600;
+            margin-bottom: 10px;
+            color: #495057;
+        }
+        
+        .file-input {
+            width: 100%;
+            padding: 12px;
+            border: 2px dashed #007bff;
+            border-radius: 10px;
+            background: white;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+        
+        .file-input:hover {
+            border-color: #0056b3;
+            background: #f8f9ff;
+        }
+        
+        .code-input-group {
+            margin-bottom: 20px;
+        }
+        
+        .code-textarea {
+            width: 100%;
+            height: 300px;
+            padding: 15px;
+            border: 2px solid #dee2e6;
+            border-radius: 10px;
+            font-family: 'Courier New', monospace;
+            font-size: 14px;
+            line-height: 1.5;
+            resize: vertical;
+            transition: border-color 0.3s ease;
+        }
+        
+        .code-textarea:focus {
+            outline: none;
+            border-color: #007bff;
+            box-shadow: 0 0 0 3px rgba(0, 123, 255, 0.25);
+        }
+        
+        .language-select {
+            width: 100%;
+            padding: 12px;
+            border: 2px solid #dee2e6;
+            border-radius: 10px;
+            font-size: 16px;
+            background: white;
+            cursor: pointer;
+            transition: border-color 0.3s ease;
+        }
+        
+        .language-select:focus {
+            outline: none;
+            border-color: #007bff;
+        }
+        
+        .analyze-btn {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            padding: 15px 30px;
+            font-size: 18px;
+            font-weight: 600;
+            border-radius: 10px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            width: 100%;
+            margin-top: 20px;
+        }
+        
+        .analyze-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 20px rgba(0, 0, 0, 0.2);
+        }
+        
+        .results-section {
+            background: white;
+            border-radius: 15px;
+            padding: 25px;
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.1);
+            display: none;
+        }
+        
+        .results-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+            padding-bottom: 15px;
+            border-bottom: 2px solid #e9ecef;
+        }
+        
+        .results-count {
+            background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
+            color: white;
+            padding: 8px 15px;
+            border-radius: 20px;
+            font-weight: 600;
+        }
+        
+        .function-list {
+            list-style: none;
+        }
+        
+        .function-item {
+            background: #f8f9fa;
+            margin-bottom: 15px;
+            padding: 20px;
+            border-radius: 10px;
+            border-left: 4px solid #007bff;
+            transition: all 0.3s ease;
+        }
+        
+        .function-item:hover {
+            transform: translateX(5px);
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.1);
+        }
+        
+        .function-name {
+            font-size: 1.3em;
+            font-weight: 600;
+            color: #007bff;
+            margin-bottom: 10px;
+        }
+        
+        .function-location {
+            color: #6c757d;
+            font-family: 'Courier New', monospace;
+            font-size: 0.9em;
+        }
+        
+        .error-message {
+            background: #f8d7da;
+            color: #721c24;
+            padding: 15px;
+            border-radius: 10px;
+            border: 1px solid #f5c6cb;
+            margin-top: 20px;
+        }
+        
+        .no-results {
+            text-align: center;
+            color: #6c757d;
+            font-size: 1.1em;
+            padding: 40px;
+        }
+        
+        .loading {
+            text-align: center;
+            padding: 40px;
+            color: #007bff;
+            font-size: 1.1em;
+        }
+        
+        .spinner {
+            display: inline-block;
+            width: 20px;
+            height: 20px;
+            border: 3px solid #f3f3f3;
+            border-top: 3px solid #007bff;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin-right: 10px;
+        }
+        
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 20px;
+            margin-bottom: 30px;
+        }
+        
+        .stat-card {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 20px;
+            border-radius: 15px;
+            text-align: center;
+        }
+        
+        .stat-number {
+            font-size: 2em;
+            font-weight: 700;
+            margin-bottom: 5px;
+        }
+        
+        .stat-label {
+            font-size: 0.9em;
+            opacity: 0.9;
+        }
+    </style>
 </head>
 <body>
-  <h1>在线函数提取器</h1>
-  <label for="lang">语言：</label>
-  <select id="lang">
-    <option value="javascript">JavaScript</option>
-    <option value="python">Python</option>
-    <option value="go">Go</option>
-    <option value="rust">Rust</option>
-  </select>
-  <br><br>
-  <textarea id="code" placeholder="在此粘贴源码..."></textarea>
-  <br>
-  <button id="run">提取函数</button>
-  <div class="output">
-    <h2>结果：</h2>
-    <pre id="out"></pre>
-  </div>
+    <div class="container">
+        <div class="header">
+            <h1>🔍 多语言代码分析器</h1>
+            <p>支持 Python, JavaScript, Go, Rust, HTML 等多种语言的函数提取与位置定位</p>
+        </div>
+        
+        <div class="main-content">
+            <div class="input-section">
+                <div class="file-input-group">
+                    <label class="file-input-label">📁 选择代码文件</label>
+                    <input type="file" id="fileInput" class="file-input" accept=".py,.js,.go,.rs,.html,.htm,.jsx,.ts,.tsx">
+                </div>
+                
+                <div class="code-input-group">
+                    <label class="file-input-label">📝 或直接粘贴代码</label>
+                    <textarea id="codeInput" class="code-textarea" placeholder="在这里粘贴您的代码..."></textarea>
+                </div>
+                
+                <div class="file-input-group">
+                    <label class="file-input-label">🔧 选择语言</label>
+                    <select id="languageSelect" class="language-select">
+                        <option value="javascript">JavaScript</option>
+                        <option value="python">Python</option>
+                        <option value="html">HTML</option>
+                        <option value="go">Go</option>
+                        <option value="rust">Rust</option>
+                    </select>
+                </div>
+                
+                <button id="analyzeBtn" class="analyze-btn">🚀 开始分析</button>
+            </div>
+            
+            <div id="resultsSection" class="results-section">
+                <div class="results-header">
+                    <h2>📊 分析结果</h2>
+                    <div id="resultsCount" class="results-count"></div>
+                </div>
+                
+                <div id="statsGrid" class="stats-grid"></div>
+                
+                <div id="functionList"></div>
+            </div>
+        </div>
+    </div>
 
-  <!-- 引入 Web Tree-sitter -->
-  <script src="https://cdn.jsdelivr.net/npm/web-tree-sitter@0.20.0/dist/tree-sitter.min.js"></script>
-  <script>
-    (async () => {
-      const { Parser, Language } = TreeSitter;
-      await Parser.init({
-        locateFile: file =>
-          `https://cdn.jsdelivr.net/npm/web-tree-sitter@0.20.0/dist/${file}`
-      });
+    <script>
+        // 语言配置
+        const LANG_CONFIG = {
+            python: {
+                name: 'Python',
+                extensions: ['.py'],
+                functionPatterns: [
+                    /def\s+([a-zA-Z_][a-zA-Z0-9_]*)\s*\(/g,
+                    /class\s+([a-zA-Z_][a-zA-Z0-9_]*)\s*[\(:]?/g
+                ]
+            },
+            javascript: {
+                name: 'JavaScript',
+                extensions: ['.js', '.jsx', '.ts', '.tsx'],
+                functionPatterns: [
+                    /function\s+([a-zA-Z_$][a-zA-Z0-9_$]*)\s*\(/g,
+                    /([a-zA-Z_$][a-zA-Z0-9_$]*)\s*:\s*function\s*\(/g,
+                    /([a-zA-Z_$][a-zA-Z0-9_$]*)\s*=>\s*\{?/g,
+                    /([a-zA-Z_$][a-zA-Z0-9_$]*)\s*=\s*function\s*\(/g,
+                    /class\s+([a-zA-Z_$][a-zA-Z0-9_$]*)/g,
+                    /([a-zA-Z_$][a-zA-Z0-9_$]*)\s*\([^)]*\)\s*\{/g
+                ]
+            },
+            go: {
+                name: 'Go',
+                extensions: ['.go'],
+                functionPatterns: [
+                    /func\s+([a-zA-Z_][a-zA-Z0-9_]*)\s*\(/g,
+                    /func\s*\([^)]*\)\s*([a-zA-Z_][a-zA-Z0-9_]*)\s*\(/g
+                ]
+            },
+            rust: {
+                name: 'Rust',
+                extensions: ['.rs'],
+                functionPatterns: [
+                    /fn\s+([a-zA-Z_][a-zA-Z0-9_]*)\s*\(/g,
+                    /impl.*\{\s*fn\s+([a-zA-Z_][a-zA-Z0-9_]*)\s*\(/g
+                ]
+            },
+            html: {
+                name: 'HTML',
+                extensions: ['.html', '.htm'],
+                functionPatterns: [
+                    /function\s+([a-zA-Z_$][a-zA-Z0-9_$]*)\s*\(/g,
+                    /([a-zA-Z_$][a-zA-Z0-9_$]*)\s*:\s*function\s*\(/g,
+                    /([a-zA-Z_$][a-zA-Z0-9_$]*)\s*=>\s*\{?/g
+                ]
+            }
+        };
 
-      const parsers = {};
-      async function getParser(lang) {
-        if (!parsers[lang]) {
-          const p = new Parser();
-          const wasmUrl = `https://cdn.jsdelivr.net/npm/tree-sitter-${lang}@0.20.0/tree-sitter-${lang}.wasm`;
-          const L = await Language.load(wasmUrl);
-          p.setLanguage(L);
-          parsers[lang] = p;
+        // DOM 元素
+        const fileInput = document.getElementById('fileInput');
+        const codeInput = document.getElementById('codeInput');
+        const languageSelect = document.getElementById('languageSelect');
+        const analyzeBtn = document.getElementById('analyzeBtn');
+        const resultsSection = document.getElementById('resultsSection');
+        const resultsCount = document.getElementById('resultsCount');
+        const statsGrid = document.getElementById('statsGrid');
+        const functionList = document.getElementById('functionList');
+
+        // 文件上传处理
+        fileInput.addEventListener('change', function(e) {
+            const file = e.target.files[0];
+            if (file) {
+                const reader = new FileReader();
+                reader.onload = function(e) {
+                    codeInput.value = e.target.result;
+                    // 自动检测语言
+                    const ext = '.' + file.name.split('.').pop().toLowerCase();
+                    for (const [lang, config] of Object.entries(LANG_CONFIG)) {
+                        if (config.extensions.includes(ext)) {
+                            languageSelect.value = lang;
+                            break;
+                        }
+                    }
+                };
+                reader.readAsText(file);
+            }
+        });
+
+        // 分析代码
+        analyzeBtn.addEventListener('click', function() {
+            const code = codeInput.value.trim();
+            const language = languageSelect.value;
+            
+            if (!code) {
+                showError('请输入代码或上传文件');
+                return;
+            }
+
+            showLoading();
+            
+            // 模拟异步处理
+            setTimeout(() => {
+                try {
+                    const functions = extractFunctions(code, language);
+                    displayResults(functions, language);
+                } catch (error) {
+                    showError('代码分析失败：' + error.message);
+                }
+            }, 500);
+        });
+
+        // 提取函数
+        function extractFunctions(code, language) {
+            const config = LANG_CONFIG[language];
+            const functions = [];
+            const lines = code.split('\n');
+            
+            // 处理HTML中的脚本
+            if (language === 'html') {
+                const scriptMatches = code.match(/<script[^>]*>([\s\S]*?)<\/script>/gi);
+                if (scriptMatches) {
+                    scriptMatches.forEach(scriptBlock => {
+                        const scriptContent = scriptBlock.replace(/<script[^>]*>|<\/script>/gi, '');
+                        const scriptFunctions = extractJSFunctions(scriptContent);
+                        functions.push(...scriptFunctions);
+                    });
+                }
+            } else {
+                // 处理其他语言
+                config.functionPatterns.forEach(pattern => {
+                    let match;
+                    while ((match = pattern.exec(code)) !== null) {
+                        const functionName = match[1];
+                        const position = getLinePosition(code, match.index);
+                        
+                        if (functionName && functionName.length > 0) {
+                            functions.push({
+                                name: functionName,
+                                startLine: position.line,
+                                startCol: position.column,
+                                endLine: position.line,
+                                endCol: position.column + match[0].length,
+                                type: detectFunctionType(match[0])
+                            });
+                        }
+                    }
+                });
+            }
+            
+            // 去重并排序
+            const uniqueFunctions = Array.from(new Map(
+                functions.map(f => [`${f.name}-${f.startLine}`, f])
+            ).values());
+            
+            return uniqueFunctions.sort((a, b) => a.startLine - b.startLine);
         }
-        return parsers[lang];
-      }
 
-      document.getElementById('run').addEventListener('click', async () => {
-        const lang = document.getElementById('lang').value;
-        const code = document.getElementById('code').value;
-        const parser = await getParser(lang);
-        const tree = parser.parse(code);
-        const funcs = [];
-        (function visit(node) {
-          if ([
-            'function_definition',
-            'function_declaration',
-            'method_definition',
-            'function_item'
-          ].includes(node.type)) {
-            const nameNode = node.namedChildren.find(c => c.type === 'identifier');
-            const name = nameNode ? nameNode.text : '<anon>';
-            const { row: sr, column: sc } = node.startPosition;
-            const { row: er, column: ec } = node.endPosition;
-            funcs.push(`${name} 行 ${sr+1}:${sc+1} - ${er+1}:${ec+1}`);
-          }
-          node.namedChildren.forEach(visit);
-        })(tree.rootNode);
-        document.getElementById('out').textContent =
-          funcs.length ? funcs.join('\n') : '未发现任何函数';
-      });
-    })();
-  </script>
+        // 提取JavaScript函数
+        function extractJSFunctions(code) {
+            const functions = [];
+            const jsPatterns = LANG_CONFIG.javascript.functionPatterns;
+            
+            jsPatterns.forEach(pattern => {
+                let match;
+                const regex = new RegExp(pattern.source, pattern.flags);
+                while ((match = regex.exec(code)) !== null) {
+                    const functionName = match[1];
+                    const position = getLinePosition(code, match.index);
+                    
+                    if (functionName && functionName.length > 0) {
+                        functions.push({
+                            name: functionName,
+                            startLine: position.line,
+                            startCol: position.column,
+                            endLine: position.line,
+                            endCol: position.column + match[0].length,
+                            type: 'function'
+                        });
+                    }
+                }
+            });
+            
+            return functions;
+        }
+
+        // 获取行列位置
+        function getLinePosition(code, index) {
+            const lines = code.substring(0, index).split('\n');
+            return {
+                line: lines.length,
+                column: lines[lines.length - 1].length + 1
+            };
+        }
+
+        // 检测函数类型
+        function detectFunctionType(matchStr) {
+            if (matchStr.includes('class')) return 'class';
+            if (matchStr.includes('function')) return 'function';
+            if (matchStr.includes('=>')) return 'arrow';
+            if (matchStr.includes('def')) return 'function';
+            if (matchStr.includes('func')) return 'function';
+            if (matchStr.includes('fn')) return 'function';
+            return 'function';
+        }
+
+        // 显示结果
+        function displayResults(functions, language) {
+            resultsSection.style.display = 'block';
+            
+            if (functions.length === 0) {
+                functionList.innerHTML = '<div class="no-results">🤷‍♂️ 未找到任何函数定义</div>';
+                resultsCount.textContent = '0 个函数';
+                statsGrid.innerHTML = '';
+                return;
+            }
+
+            resultsCount.textContent = `${functions.length} 个函数`;
+            
+            // 显示统计信息
+            displayStats(functions, language);
+            
+            // 显示函数列表
+            functionList.innerHTML = functions.map((func, index) => `
+                <div class="function-item">
+                    <div class="function-name">
+                        ${getFunctionIcon(func.type)} ${func.name}
+                    </div>
+                    <div class="function-location">
+                        📍 位置: 第 ${func.startLine} 行, 第 ${func.startCol} 列
+                        ${func.endLine !== func.startLine ? ` - 第 ${func.endLine} 行, 第 ${func.endCol} 列` : ''}
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        // 显示统计信息
+        function displayStats(functions, language) {
+            const stats = {
+                total: functions.length,
+                functions: functions.filter(f => f.type === 'function').length,
+                classes: functions.filter(f => f.type === 'class').length,
+                arrows: functions.filter(f => f.type === 'arrow').length
+            };
+
+            statsGrid.innerHTML = `
+                <div class="stat-card">
+                    <div class="stat-number">${stats.total}</div>
+                    <div class="stat-label">总计</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-number">${stats.functions}</div>
+                    <div class="stat-label">函数</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-number">${stats.classes}</div>
+                    <div class="stat-label">类</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-number">${LANG_CONFIG[language].name}</div>
+                    <div class="stat-label">语言</div>
+                </div>
+            `;
+        }
+
+        // 获取函数图标
+        function getFunctionIcon(type) {
+            switch (type) {
+                case 'class': return '🏛️';
+                case 'arrow': return '➡️';
+                case 'function': return '⚙️';
+                default: return '🔧';
+            }
+        }
+
+        // 显示加载状态
+        function showLoading() {
+            resultsSection.style.display = 'block';
+            functionList.innerHTML = `
+                <div class="loading">
+                    <div class="spinner"></div>
+                    正在分析代码，请稍候...
+                </div>
+            `;
+            resultsCount.textContent = '';
+            statsGrid.innerHTML = '';
+        }
+
+        // 显示错误
+        function showError(message) {
+            resultsSection.style.display = 'block';
+            functionList.innerHTML = `
+                <div class="error-message">
+                    ❌ ${message}
+                </div>
+            `;
+            resultsCount.textContent = '';
+            statsGrid.innerHTML = '';
+        }
+
+        // 初始化示例代码
+        codeInput.value = `# Python 示例代码
+def hello_world():
+    print("Hello, World!")
+
+class Calculator:
+    def __init__(self):
+        self.result = 0
+    
+    def add(self, x, y):
+        return x + y
+    
+    def multiply(self, x, y):
+        return x * y
+
+def main():
+    calc = Calculator()
+    print(calc.add(5, 3))
+
+if __name__ == "__main__":
+    main()`;
+    </script>
 </body>
 </html>

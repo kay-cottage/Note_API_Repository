@@ -47,7 +47,7 @@
         .function-list{list-style:none;}
         .function-item{background:#f8f9fa;margin-bottom:12px;padding:15px;border-radius:8px;border-left:4px solid #007bff;transition:all .3s ease;cursor:pointer;position:relative;}
         .function-item:hover{transform:translateX(3px);box-shadow:0 3px 10px rgba(0,0,0,.1);background:#e9ecef;}
-        .function-item.highlighted{background:#fff3cd;border-left-color:#ffc107;box-shadow:0 3px 10px rgba(255,193,7,.3);}
+        .function-item.highlighted{background:#fff3cd;border-left-color:#ffc107;box-shadow:0 3px 10px rgba(255,193,7,.3);}        
         .function-name{font-size:1.1em;font-weight:600;color:#007bff;margin-bottom:8px;display:flex;align-items:center;gap:8px;}
         .function-location{color:#6c757d;font-family:'Consolas','Monaco','Courier New',monospace;font-size:.85em;margin-bottom:5px;}
         .function-boundary{color:#28a745;font-family:'Consolas','Monaco','Courier New',monospace;font-size:.85em;margin-bottom:8px;}
@@ -308,7 +308,7 @@ if __name__ == "__main__":
                 item.className= 'function-item';
                 item.innerHTML = `
                     <div class="function-name">${func.name}</div>
-                    <div class="function-location">Lines ${func.startLine} - ${func.endLine}</div>
+                    <div class="function-location">第 ${func.startLine} - ${func.endLine} 行</div>
                     <div class="function-boundary">${func.type}</div>
                     <div class="function-actions">
                         <button class="action-btn jump-btn">跳转</button>
@@ -326,19 +326,78 @@ if __name__ == "__main__":
             });
         }
 
+        // 修复的跳转函数
         function scrollToLine(lineNumber){
             const lines = codeEditor.value.split('\n');
+            const editorStyle = window.getComputedStyle(codeEditor);
+            const lineHeight = parseFloat(editorStyle.lineHeight);
+            const fontSize = parseFloat(editorStyle.fontSize);
+            const actualLineHeight = lineHeight || fontSize * 1.2;
+
+            // 计算字符位置
             let pos = 0;
-            for(let i=0;i<lineNumber-1;i++) pos += lines[i].length+1;
+            for(let i = 0; i < lineNumber - 1; i++){
+                pos += lines[i].length + 1; // +1 for newline character
+            }
+
+            // 设置焦点和光标位置
             codeEditor.focus();
-            codeEditor.setSelectionRange(pos,pos);
-            const lineHeight = parseFloat(getComputedStyle(codeEditor).lineHeight);
-            codeEditor.scrollTop = (lineNumber-1)*lineHeight;
-            lineNumbers.scrollTop = codeEditor.scrollTop;
+            codeEditor.setSelectionRange(pos, pos);
+
+            // 计算滚动位置，确保目标行在视口中央
+            const targetScrollTop = (lineNumber - 1) * actualLineHeight;
+            const editorHeight = codeEditor.clientHeight;
+            const scrollTop = Math.max(0, targetScrollTop - editorHeight / 2);
+
+            // 设置滚动位置
+            codeEditor.scrollTop = scrollTop;
+            lineNumbers.scrollTop = scrollTop;
+
+            // 添加临时高亮效果
+            highlightLine(lineNumber);
+        }
+
+        // 添加行高亮效果
+        function highlightLine(lineNumber){
+            // 移除之前的高亮
+            const existingHighlight = document.querySelector('.line-highlight');
+            if(existingHighlight){
+                existingHighlight.remove();
+            }
+
+            // 创建高亮元素
+            const highlight = document.createElement('div');
+            highlight.className = 'line-highlight';
+            highlight.style.cssText = `
+                position: absolute;
+                left: 0;
+                right: 0;
+                height: 1.6em;
+                background-color: rgba(255, 255, 0, 0.3);
+                pointer-events: none;
+                z-index: 1;
+                top: ${(lineNumber - 1) * 1.6}em;
+                transition: opacity 0.3s ease;
+            `;
+
+            // 添加到代码编辑器容器
+            const container = document.querySelector('.code-editor-container');
+            container.appendChild(highlight);
+
+            // 2秒后淡出高亮
+            setTimeout(() => {
+                highlight.style.opacity = '0';
+                setTimeout(() => {
+                    if(highlight.parentNode){
+                        highlight.parentNode.removeChild(highlight);
+                    }
+                }, 300);
+            }, 2000);
         }
 
         function copyFunctionCode(func){
-            const code = codeLines.slice(func.startLine-1,func.endLine).join('\n');
+            const currentLines = codeEditor.value.split('\n');
+            const code = currentLines.slice(func.startLine-1,func.endLine).join('\n');
             navigator.clipboard.writeText(code).then(()=>{
                 alert('已复制函数代码到剪贴板');
             }).catch(()=>alert('复制失败，您的浏览器可能不支持 Clipboard API'));
@@ -346,7 +405,8 @@ if __name__ == "__main__":
 
         function openModal(func){
             modalTitle.textContent = `${func.type === 'class' ? '类' : '函数'}：${func.name}`;
-            modalCode.textContent = codeLines.slice(func.startLine-1,func.endLine).join('\n');
+            const currentLines = codeEditor.value.split('\n');
+            modalCode.textContent = currentLines.slice(func.startLine-1,func.endLine).join('\n');
             codeModal.style.display = 'block';
         }
 
@@ -382,34 +442,48 @@ if __name__ == "__main__":
             return functions;
         }
 
-        /* ---- Python ---- */
-        function extractPythonFunction(lines,startIndex,line){
+        /* ---- Python (修复版) ---- */
+        function extractPythonFunction(lines,startIndex,rawLine){
+            // ---- 名称与类型解析 ----
             let name='',type='function';
-            if(line.startsWith('def ')||line.startsWith('async def ')){
-                const start = line.indexOf('def ') + 4;
-                const end   = line.indexOf('(',start);
-                if(end>start) name = line.substring(start,end).trim();
-                type = line.startsWith('async')? 'async_function':'function';
-            }else if(line.startsWith('class ')){
-                const start = line.indexOf('class ')+6;
-                let end     = line.indexOf('(',start);
-                if(end===-1) end = line.indexOf(':',start);
-                if(end===-1) end = line.length;
-                if(end>start) name = line.substring(start,end).trim();
+            if(rawLine.startsWith('def ') || rawLine.startsWith('async def ')){
+                const asyncPrefix = rawLine.startsWith('async def ');
+                const defPos = rawLine.indexOf('def ');
+                const start  = defPos + 4;
+                const end    = rawLine.indexOf('(', start);
+                if(end>start) name = rawLine.substring(start,end).trim();
+                type = asyncPrefix ? 'async_function' : 'function';
+            }else if(rawLine.startsWith('class ')){
+                const start = rawLine.indexOf('class ')+6;
+                let end     = rawLine.indexOf('(',start);
+                if(end===-1) end = rawLine.indexOf(':',start);
+                if(end===-1) end = rawLine.length;
+                if(end>start) name = rawLine.substring(start,end).trim();
                 type='class';
             }
             if(!name) return null;
-            const startLine = startIndex+1;
-            const baseIndent= lines[startIndex].length - lines[startIndex].trimStart().length;
-            let endLine     = startLine;
-            for(let i=startIndex+1;i<lines.length;i++){
+
+            // ---- 缩进与范围计算 ----
+            const baseIndent = lines[startIndex].match(/^\s*/)[0].length;
+            let i = startIndex + 1;
+            while(i < lines.length){
                 const current = lines[i];
-                if(current.trim()==='') continue;
-                const indent = current.length - current.trimStart().length;
-                if(indent<=baseIndent){endLine = i;break;}
-                endLine = i+1;
+                if(current.trim() === ''){ i++; continue; } // 忽略空行
+                const indent   = current.match(/^\s*/)[0].length;
+                if(indent <= baseIndent) break;            // 缩进归位 => 函数结束
+                i++;
             }
-            return {name,startLine,endLine,startCol:baseIndent+1,endCol:lines[endLine-1]?lines[endLine-1].length:0,type};
+            const startLine = startIndex + 1;       // 1-based 开始行
+            const endLine   = i;                    // 1-based 结束行 (包含最后有效行)
+
+            return {
+                name,
+                startLine,
+                endLine,
+                startCol: baseIndent + 1,
+                endCol: lines[endLine-1] ? lines[endLine-1].length : 0,
+                type
+            };
         }
 
         /* ---- JavaScript/HTML ---- */
@@ -479,34 +553,49 @@ if __name__ == "__main__":
         /* ---- Rust ---- */
         function extractRustFunction(lines,startIndex,line){
             let name='',type='function';
-            if(line.includes('fn ')){
-                const idx = line.indexOf('fn ')+3;
-                let end   = line.indexOf('(',idx);
-                if(end===-1) end = line.indexOf('<',idx);
-                if(end===-1) end = line.length;
-                name = line.substring(idx,end).trim();
-            }else if(line.includes('impl')){
+            const trimmed = line.trim();
+            // ---- 函数名 ----
+            if(trimmed.startsWith('fn ')){
+                const fnIdx = trimmed.indexOf('fn ')+3;
+                let end = trimmed.indexOf('(',fnIdx);
+                if(end===-1) end = trimmed.indexOf('<',fnIdx); // 处理带泛型的情况
+                if(end===-1) end = trimmed.indexOf('{',fnIdx);
+                if(end===-1) end = trimmed.length;
+                name = trimmed.substring(fnIdx,end).trim();
+            }else if(trimmed.startsWith('impl')){
+                // impl 块，可能跨多行，但此处仅记录 impl 本身作为一个范围
+                const implIdx = trimmed.indexOf('impl')+4;
+                let end = trimmed.indexOf('{',implIdx);
+                if(end===-1) end = trimmed.length;
+                name = trimmed.substring(implIdx,end).trim() || 'impl';
                 type='impl';
-                const idx=line.indexOf('impl')+4;
-                let end=line.indexOf('{',idx);
-                if(end===-1) end=line.length;
-                name=line.substring(idx,end).trim();
             }
             if(!name) return null;
-            const startLine=startIndex+1;
-            let endLine=startLine,braceCount=0,foundOpen=false;
+
+            // ---- 范围 ----
+            const startLine = startIndex + 1;
+            let endLine = startLine;
+            let braceCount = 0;
+            let foundOpen = false;
             for(let i=startIndex;i<lines.length;i++){
-                const curr=lines[i];
-                for(let ch of curr){
+                const curr = lines[i];
+                for(const ch of curr){
                     if(ch==='{' ){braceCount++;foundOpen=true;}
                     else if(ch==='}'){
-                        braceCount--;if(foundOpen&&braceCount===0){endLine=i+1;break;}
+                        braceCount--;if(foundOpen && braceCount===0){endLine = i+1;break;}
                     }
                 }
-                if(foundOpen&&braceCount===0) break;
-                endLine=i+1;
+                if(foundOpen && braceCount===0) break;
+                endLine = i+1;
             }
-            return {name,startLine,endLine,startCol:1,endCol:lines[endLine-1]?lines[endLine-1].length:0,type};
+            return {
+                name,
+                startLine,
+                endLine,
+                startCol:1,
+                endCol: lines[endLine-1] ? lines[endLine-1].length : 0,
+                type
+            };
         }
     </script>
 </body>

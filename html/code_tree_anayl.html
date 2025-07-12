@@ -317,45 +317,45 @@
                 name: 'Python',
                 extensions: ['.py'],
                 functionPatterns: [
-                    /def\s+([a-zA-Z_][a-zA-Z0-9_]*)\s*\(/g,
-                    /class\s+([a-zA-Z_][a-zA-Z0-9_]*)\s*[\(:]?/g
+                    {pattern: 'def\\s+([a-zA-Z_][a-zA-Z0-9_]*)\\s*\\(', flags: 'g'},
+                    {pattern: 'class\\s+([a-zA-Z_][a-zA-Z0-9_]*)\\s*[\\(:]?', flags: 'g'}
                 ]
             },
             javascript: {
                 name: 'JavaScript',
                 extensions: ['.js', '.jsx', '.ts', '.tsx'],
                 functionPatterns: [
-                    /function\s+([a-zA-Z_$][a-zA-Z0-9_$]*)\s*\(/g,
-                    /([a-zA-Z_$][a-zA-Z0-9_$]*)\s*:\s*function\s*\(/g,
-                    /([a-zA-Z_$][a-zA-Z0-9_$]*)\s*=>\s*\{?/g,
-                    /([a-zA-Z_$][a-zA-Z0-9_$]*)\s*=\s*function\s*\(/g,
-                    /class\s+([a-zA-Z_$][a-zA-Z0-9_$]*)/g,
-                    /([a-zA-Z_$][a-zA-Z0-9_$]*)\s*\([^)]*\)\s*\{/g
+                    {pattern: 'function\\s+([a-zA-Z_$][a-zA-Z0-9_$]*)\\s*\\(', flags: 'g'},
+                    {pattern: '([a-zA-Z_$][a-zA-Z0-9_$]*)\\s*:\\s*function\\s*\\(', flags: 'g'},
+                    {pattern: '([a-zA-Z_$][a-zA-Z0-9_$]*)\\s*=>\\s*\\{?', flags: 'g'},
+                    {pattern: '([a-zA-Z_$][a-zA-Z0-9_$]*)\\s*=\\s*function\\s*\\(', flags: 'g'},
+                    {pattern: 'class\\s+([a-zA-Z_$][a-zA-Z0-9_$]*)', flags: 'g'},
+                    {pattern: '([a-zA-Z_$][a-zA-Z0-9_$]*)\\s*\\([^)]*\\)\\s*\\{', flags: 'g'}
                 ]
             },
             go: {
                 name: 'Go',
                 extensions: ['.go'],
                 functionPatterns: [
-                    /func\s+([a-zA-Z_][a-zA-Z0-9_]*)\s*\(/g,
-                    /func\s*\([^)]*\)\s*([a-zA-Z_][a-zA-Z0-9_]*)\s*\(/g
+                    {pattern: 'func\\s+([a-zA-Z_][a-zA-Z0-9_]*)\\s*\\(', flags: 'g'},
+                    {pattern: 'func\\s*\\([^)]*\\)\\s*([a-zA-Z_][a-zA-Z0-9_]*)\\s*\\(', flags: 'g'}
                 ]
             },
             rust: {
                 name: 'Rust',
                 extensions: ['.rs'],
                 functionPatterns: [
-                    /fn\s+([a-zA-Z_][a-zA-Z0-9_]*)\s*\(/g,
-                    /impl.*\{\s*fn\s+([a-zA-Z_][a-zA-Z0-9_]*)\s*\(/g
+                    {pattern: 'fn\\s+([a-zA-Z_][a-zA-Z0-9_]*)\\s*\\(', flags: 'g'},
+                    {pattern: 'impl.*\\{\\s*fn\\s+([a-zA-Z_][a-zA-Z0-9_]*)\\s*\\(', flags: 'g'}
                 ]
             },
             html: {
                 name: 'HTML',
                 extensions: ['.html', '.htm'],
                 functionPatterns: [
-                    /function\s+([a-zA-Z_$][a-zA-Z0-9_$]*)\s*\(/g,
-                    /([a-zA-Z_$][a-zA-Z0-9_$]*)\s*:\s*function\s*\(/g,
-                    /([a-zA-Z_$][a-zA-Z0-9_$]*)\s*=>\s*\{?/g
+                    {pattern: 'function\\s+([a-zA-Z_$][a-zA-Z0-9_$]*)\\s*\\(', flags: 'g'},
+                    {pattern: '([a-zA-Z_$][a-zA-Z0-9_$]*)\\s*:\\s*function\\s*\\(', flags: 'g'},
+                    {pattern: '([a-zA-Z_$][a-zA-Z0-9_$]*)\\s*=>\\s*\\{?', flags: 'g'}
                 ]
             }
         };
@@ -421,19 +421,19 @@
             
             // 处理HTML中的脚本
             if (language === 'html') {
-                const scriptMatches = code.match(/<script[^>]*>([\s\S]*?)<\/script>/gi);
-                if (scriptMatches) {
-                    scriptMatches.forEach(scriptBlock => {
-                        const scriptContent = scriptBlock.replace(/<script[^>]*>|<\/script>/gi, '');
-                        const scriptFunctions = extractJSFunctions(scriptContent);
-                        functions.push(...scriptFunctions);
-                    });
+                const scriptRegex = new RegExp('<script[^>]*>([\\s\\S]*?)<\\/script>', 'gi');
+                let scriptMatch;
+                while ((scriptMatch = scriptRegex.exec(code)) !== null) {
+                    const scriptContent = scriptMatch[1];
+                    const scriptFunctions = extractJSFunctions(scriptContent);
+                    functions.push(...scriptFunctions);
                 }
             } else {
                 // 处理其他语言
-                config.functionPatterns.forEach(pattern => {
+                config.functionPatterns.forEach(patternConfig => {
+                    const regex = new RegExp(patternConfig.pattern, patternConfig.flags);
                     let match;
-                    while ((match = pattern.exec(code)) !== null) {
+                    while ((match = regex.exec(code)) !== null) {
                         const functionName = match[1];
                         const position = getLinePosition(code, match.index);
                         
@@ -462,11 +462,17 @@
         // 提取JavaScript函数
         function extractJSFunctions(code) {
             const functions = [];
-            const jsPatterns = LANG_CONFIG.javascript.functionPatterns;
+            const jsPatterns = [
+                {pattern: 'function\\s+([a-zA-Z_$][a-zA-Z0-9_$]*)\\s*\\(', flags: 'g'},
+                {pattern: '([a-zA-Z_$][a-zA-Z0-9_$]*)\\s*:\\s*function\\s*\\(', flags: 'g'},
+                {pattern: '([a-zA-Z_$][a-zA-Z0-9_$]*)\\s*=>\\s*\\{?', flags: 'g'},
+                {pattern: '([a-zA-Z_$][a-zA-Z0-9_$]*)\\s*=\\s*function\\s*\\(', flags: 'g'},
+                {pattern: 'class\\s+([a-zA-Z_$][a-zA-Z0-9_$]*)', flags: 'g'}
+            ];
             
-            jsPatterns.forEach(pattern => {
+            jsPatterns.forEach(patternConfig => {
+                const regex = new RegExp(patternConfig.pattern, patternConfig.flags);
                 let match;
-                const regex = new RegExp(pattern.source, pattern.flags);
                 while ((match = regex.exec(code)) !== null) {
                     const functionName = match[1];
                     const position = getLinePosition(code, match.index);

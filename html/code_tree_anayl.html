@@ -1,0 +1,77 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>在线函数提取器</title>
+  <style>
+    body { font-family: sans-serif; padding: 1rem; }
+    textarea { width: 100%; height: 200px; font-family: monospace; }
+    pre { background: #f4f4f4; padding: .5rem; }
+    .output { margin-top: 1rem; }
+  </style>
+</head>
+<body>
+  <h1>在线函数提取器</h1>
+  <label for="lang">语言：</label>
+  <select id="lang"><option value="python">Python</option><option value="javascript">JavaScript</option><option value="go">Go</option><option value="rust">Rust</option></select>
+  <br><br>
+  <textarea id="code" placeholder="在此粘贴源码..."></textarea>
+  <br>
+  <button id="runBtn">提取函数</button>
+
+  <div class="output">
+    <h2>结果：</h2>
+    <pre id="result"></pre>
+  </div>
+
+  <!-- 引入 Web Tree-sitter -->
+  <script src="https://unpkg.com/web-tree-sitter@0.20.0/dist/tree-sitter.js"></script>
+  <script>
+    (async () => {
+      await TreeSitter.init();
+      // 语法模块缓存
+      const LANG_CACHE = {};
+
+      async function loadLang(lang) {
+        if (LANG_CACHE[lang]) return LANG_CACHE[lang];
+        const parser = new TreeSitter();
+        const wasmUrl = `https://unpkg.com/tree-sitter-${lang}/tree-sitter-${lang}.wasm`;
+        // 加载 wasm 语法
+        const langModule = await TreeSitter.Language.load(wasmUrl);
+        parser.setLanguage(langModule);
+        LANG_CACHE[lang] = parser;
+        return parser;
+      }
+
+      function extractFunctions(root) {
+        const funcs = [];
+        const stack = [root];
+        while (stack.length) {
+          const node = stack.pop();
+          if ([ 'function_definition', 'function_declaration', 'method_definition', 'function_item' ].includes(node.type)) {
+            // 取名字
+            const nameNode = node.namedChildren.find(c => c.type === 'identifier');
+            const name = nameNode ? nameNode.text : '<anon>';
+            const start = node.startPosition;
+            const end = node.endPosition;
+            funcs.push({ name, start, end });
+          }
+          for (let c of node.namedChildren) stack.push(c);
+        }
+        return funcs;
+      }
+
+      document.getElementById('runBtn').addEventListener('click', async () => {
+        const code = document.getElementById('code').value;
+        const lang = document.getElementById('lang').value;
+        const parser = await loadLang(lang);
+        const tree = parser.parse(code);
+        const funcs = extractFunctions(tree.rootNode);
+        const lines = funcs.map((f,i) => `${i+1}. ${f.name} 行 ${f.start.row+1}:${f.start.column+1} - ${f.end.row+1}:${f.end.column+1}`);
+        document.getElementById('result').textContent = lines.join('\n') || '未发现任何函数';
+      });
+    })();
+  </script>
+</body>
+</html>

@@ -1,0 +1,379 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>代码函数提取器</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/tree-sitter/0.20.0/tree-sitter.min.js"></script>
+    <style>
+        body {
+            font-family: monospace;
+            margin: 20px;
+            background-color: #f5f5f5;
+        }
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+        .input-section {
+            margin-bottom: 20px;
+        }
+        label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: bold;
+        }
+        textarea {
+            width: 100%;
+            height: 300px;
+            font-family: monospace;
+            font-size: 14px;
+            padding: 10px;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+            resize: vertical;
+        }
+        select {
+            padding: 5px;
+            margin-bottom: 10px;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+        }
+        button {
+            background-color: #007bff;
+            color: white;
+            padding: 10px 20px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+        button:hover {
+            background-color: #0056b3;
+        }
+        .results {
+            margin-top: 20px;
+        }
+        .function-list {
+            background-color: white;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            padding: 15px;
+            margin-bottom: 20px;
+        }
+        .function-item {
+            padding: 8px;
+            margin: 5px 0;
+            background-color: #f8f9fa;
+            border: 1px solid #dee2e6;
+            border-radius: 3px;
+            cursor: pointer;
+        }
+        .function-item:hover {
+            background-color: #e9ecef;
+        }
+        .function-details {
+            background-color: white;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            padding: 15px;
+            margin-top: 10px;
+        }
+        .function-body {
+            background-color: #f8f9fa;
+            border: 1px solid #dee2e6;
+            border-radius: 3px;
+            padding: 10px;
+            white-space: pre-wrap;
+            font-family: monospace;
+            font-size: 14px;
+            overflow-x: auto;
+        }
+        .error {
+            color: red;
+            background-color: #ffe6e6;
+            padding: 10px;
+            border-radius: 4px;
+        }
+        .info {
+            color: #666;
+            font-style: italic;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>代码函数提取器</h1>
+        
+        <div class="input-section">
+            <label for="language">选择语言:</label>
+            <select id="language">
+                <option value="python">Python</option>
+                <option value="javascript">JavaScript</option>
+                <option value="html">HTML</option>
+            </select>
+        </div>
+        
+        <div class="input-section">
+            <label for="codeInput">输入代码:</label>
+            <textarea id="codeInput" placeholder="请输入您的代码..."></textarea>
+        </div>
+        
+        <button onclick="extractFunctions()">提取函数</button>
+        
+        <div class="results" id="results"></div>
+    </div>
+
+    <script>
+        let currentFunctions = [];
+        let currentCode = '';
+        
+        // 语言节点类型映射
+        const LANG_NODE_TYPES = {
+            'python': ['function_definition'],
+            'javascript': ['function_declaration', 'method_definition', 'arrow_function'],
+            'html': []
+        };
+        
+        // 简单的函数提取器（不依赖tree-sitter）
+        function extractFunctionsSimple(code, language) {
+            const functions = [];
+            const lines = code.split('\n');
+            
+            if (language === 'python') {
+                // Python 函数匹配
+                const pythonPattern = /^(\s*)def\s+(\w+)\s*\(([^)]*)\)\s*:/;
+                
+                for (let i = 0; i < lines.length; i++) {
+                    const match = lines[i].match(pythonPattern);
+                    if (match) {
+                        const [, indent, name, params] = match;
+                        const startLine = i + 1;
+                        const startCol = match.index + 1;
+                        
+                        // 寻找函数结束位置
+                        let endLine = startLine;
+                        let endCol = lines[i].length;
+                        
+                        // 简单的缩进检测来找到函数结束
+                        for (let j = i + 1; j < lines.length; j++) {
+                            const nextLine = lines[j];
+                            if (nextLine.trim() === '') continue;
+                            
+                            const nextIndent = nextLine.match(/^\s*/)[0];
+                            if (nextIndent.length <= indent.length && nextLine.trim() !== '') {
+                                endLine = j;
+                                endCol = 1;
+                                break;
+                            }
+                            endLine = j + 1;
+                            endCol = nextLine.length;
+                        }
+                        
+                        functions.push({
+                            name,
+                            params: `(${params})`,
+                            start: [startLine, startCol],
+                            end: [endLine, endCol]
+                        });
+                    }
+                }
+            } else if (language === 'javascript') {
+                // JavaScript 函数匹配
+                const jsPatterns = [
+                    /function\s+(\w+)\s*\(([^)]*)\)\s*{/g,
+                    /const\s+(\w+)\s*=\s*\(([^)]*)\)\s*=>\s*{/g,
+                    /let\s+(\w+)\s*=\s*\(([^)]*)\)\s*=>\s*{/g,
+                    /var\s+(\w+)\s*=\s*\(([^)]*)\)\s*=>\s*{/g,
+                    /(\w+)\s*:\s*function\s*\(([^)]*)\)\s*{/g,
+                    /(\w+)\s*:\s*\(([^)]*)\)\s*=>\s*{/g
+                ];
+                
+                for (let i = 0; i < lines.length; i++) {
+                    const line = lines[i];
+                    
+                    for (const pattern of jsPatterns) {
+                        pattern.lastIndex = 0; // 重置正则表达式
+                        let match;
+                        while ((match = pattern.exec(line)) !== null) {
+                            const [fullMatch, name, params] = match;
+                            const startLine = i + 1;
+                            const startCol = match.index + 1;
+                            
+                            // 寻找匹配的右括号
+                            let braceCount = 1;
+                            let endLine = startLine;
+                            let endCol = match.index + fullMatch.length;
+                            
+                            // 从函数开始的{后面开始计算
+                            let searchPos = match.index + fullMatch.length;
+                            
+                            for (let j = i; j < lines.length; j++) {
+                                const searchLine = lines[j];
+                                const startPos = j === i ? searchPos : 0;
+                                
+                                for (let k = startPos; k < searchLine.length; k++) {
+                                    if (searchLine[k] === '{') {
+                                        braceCount++;
+                                    } else if (searchLine[k] === '}') {
+                                        braceCount--;
+                                        if (braceCount === 0) {
+                                            endLine = j + 1;
+                                            endCol = k + 1;
+                                            break;
+                                        }
+                                    }
+                                }
+                                if (braceCount === 0) break;
+                            }
+                            
+                            functions.push({
+                                name,
+                                params: `(${params})`,
+                                start: [startLine, startCol],
+                                end: [endLine, endCol]
+                            });
+                        }
+                    }
+                }
+            } else if (language === 'html') {
+                // HTML 中的 JavaScript 函数
+                const scriptPattern = /<script[^>]*>([\s\S]*?)<\/script>/gi;
+                let scriptMatch;
+                
+                while ((scriptMatch = scriptPattern.exec(code)) !== null) {
+                    const scriptContent = scriptMatch[1];
+                    const scriptStart = scriptMatch.index;
+                    
+                    // 计算脚本块开始的行号
+                    const beforeScript = code.substring(0, scriptStart);
+                    const scriptStartLine = beforeScript.split('\n').length;
+                    const scriptStartInMatch = scriptMatch[0].indexOf(scriptContent);
+                    const baseLineOffset = code.substring(0, scriptStart + scriptStartInMatch).split('\n').length - 1;
+                    
+                    // 在脚本内容中查找函数
+                    const scriptFunctions = extractFunctionsSimple(scriptContent, 'javascript');
+                    
+                    // 调整行号
+                    scriptFunctions.forEach(func => {
+                        func.start[0] += baseLineOffset;
+                        func.end[0] += baseLineOffset;
+                    });
+                    
+                    functions.push(...scriptFunctions);
+                }
+            }
+            
+            return functions;
+        }
+        
+        function extractFunctionBody(code, start, end) {
+            const lines = code.split('\n');
+            const [startLine, startCol] = start;
+            const [endLine, endCol] = end;
+            
+            // 转换为0-based索引
+            const startLineIdx = startLine - 1;
+            const startColIdx = startCol - 1;
+            const endLineIdx = endLine - 1;
+            const endColIdx = endCol - 1;
+            
+            if (startLineIdx === endLineIdx) {
+                // 单行函数
+                const line = lines[startLineIdx];
+                return line.substring(startColIdx, endColIdx + 1);
+            } else {
+                // 多行函数
+                const parts = [];
+                
+                // 首行
+                const firstLine = lines[startLineIdx];
+                parts.push(firstLine.substring(startColIdx));
+                
+                // 中间完整行
+                for (let i = startLineIdx + 1; i < endLineIdx; i++) {
+                    parts.push(lines[i]);
+                }
+                
+                // 最后一行
+                const lastLine = lines[endLineIdx];
+                parts.push(lastLine.substring(0, endColIdx + 1));
+                
+                return parts.join('\n');
+            }
+        }
+        
+        function extractFunctions() {
+            const language = document.getElementById('language').value;
+            const code = document.getElementById('codeInput').value;
+            const resultsDiv = document.getElementById('results');
+            
+            if (!code.trim()) {
+                resultsDiv.innerHTML = '<div class="error">请输入代码</div>';
+                return;
+            }
+            
+            currentCode = code;
+            currentFunctions = extractFunctionsSimple(code, language);
+            
+            if (currentFunctions.length === 0) {
+                resultsDiv.innerHTML = '<div class="info">未发现任何函数定义。</div>';
+                return;
+            }
+            
+            // 显示函数列表
+            let html = '<div class="function-list">';
+            html += '<h3>发现以下函数:</h3>';
+            
+            currentFunctions.forEach((func, index) => {
+                const [startLine, startCol] = func.start;
+                const [endLine, endCol] = func.end;
+                html += `<div class="function-item" onclick="showFunctionDetails(${index})">
+                    ${index + 1}. ${func.name}${func.params} 行 ${startLine}:${startCol} - ${endLine}:${endCol}
+                </div>`;
+            });
+            
+            html += '</div>';
+            html += '<div class="info">点击函数查看详情</div>';
+            html += '<div id="functionDetails"></div>';
+            
+            resultsDiv.innerHTML = html;
+        }
+        
+        function showFunctionDetails(index) {
+            const func = currentFunctions[index];
+            const functionBody = extractFunctionBody(currentCode, func.start, func.end);
+            
+            const detailsDiv = document.getElementById('functionDetails');
+            
+            let html = '<div class="function-details">';
+            html += `<h4>函数详情</h4>`;
+            html += `<p><strong>函数名:</strong> ${func.name}</p>`;
+            html += `<p><strong>参数:</strong> ${func.params}</p>`;
+            html += `<p><strong>位置:</strong> 行 ${func.start[0]}:${func.start[1]} 到 ${func.end[0]}:${func.end[1]}</p>`;
+            html += `<p><strong>函数体:</strong></p>`;
+            html += `<div class="function-body">${functionBody}</div>`;
+            html += '</div>';
+            
+            detailsDiv.innerHTML = html;
+        }
+        
+        // 示例代码
+        document.getElementById('codeInput').value = `def calculate_sum(a, b):
+    """计算两个数的和"""
+    return a + b
+
+def greet(name):
+    """打招呼函数"""
+    return f"Hello, {name}!"
+
+class Calculator:
+    def multiply(self, x, y):
+        return x * y
+    
+    def divide(self, x, y):
+        if y != 0:
+            return x / y
+        return None`;
+    </script>
+</body>
+</html>

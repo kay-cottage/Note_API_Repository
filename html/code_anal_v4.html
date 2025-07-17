@@ -1,0 +1,1151 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>智能笔记整理工具</title>
+    <style>
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(10px);
+            border-radius: 20px;
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.1);
+            overflow: hidden;
+        }
+
+        .header {
+            background: linear-gradient(135deg, #6366f1, #8b5cf6);
+            color: white;
+            padding: 30px;
+            text-align: center;
+        }
+
+        .header h1 {
+            font-size: 2.5rem;
+            margin-bottom: 10px;
+            font-weight: 700;
+        }
+
+        .header p {
+            opacity: 0.9;
+            font-size: 1.1rem;
+        }
+
+        .main-content {
+            padding: 40px;
+        }
+
+        .section {
+            margin-bottom: 40px;
+            padding: 30px;
+            background: rgba(255, 255, 255, 0.8);
+            border-radius: 15px;
+            border: 1px solid rgba(0, 0, 0, 0.1);
+        }
+
+        .section h2 {
+            color: #374151;
+            margin-bottom: 20px;
+            font-size: 1.5rem;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .form-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 20px;
+        }
+
+        .form-group {
+            display: flex;
+            flex-direction: column;
+        }
+
+        .form-group label {
+            font-weight: 600;
+            color: #374151;
+            margin-bottom: 8px;
+            font-size: 0.9rem;
+        }
+
+        .form-group input, .form-group select, .form-group textarea {
+            padding: 12px 16px;
+            border: 2px solid #e5e7eb;
+            border-radius: 10px;
+            font-size: 1rem;
+            transition: all 0.3s ease;
+            background: white;
+        }
+
+        .form-group input:focus, .form-group select:focus, .form-group textarea:focus {
+            outline: none;
+            border-color: #6366f1;
+            box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.1);
+        }
+
+        .password-input {
+            position: relative;
+        }
+
+        .password-toggle {
+            position: absolute;
+            right: 12px;
+            top: 50%;
+            transform: translateY(-50%);
+            background: none;
+            border: none;
+            cursor: pointer;
+            color: #6b7280;
+            font-size: 1.2rem;
+        }
+
+        .btn {
+            background: linear-gradient(135deg, #6366f1, #8b5cf6);
+            color: white;
+            border: none;
+            padding: 15px 30px;
+            border-radius: 10px;
+            font-size: 1rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 20px rgba(99, 102, 241, 0.3);
+        }
+
+        .btn:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .btn-secondary {
+            background: linear-gradient(135deg, #10b981, #059669);
+        }
+
+        .btn-secondary:hover {
+            box-shadow: 0 10px 20px rgba(16, 185, 129, 0.3);
+        }
+
+        .status-indicator {
+            display: inline-block;
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            margin-right: 8px;
+        }
+
+        .status-ready { background: #10b981; }
+        .status-processing { background: #f59e0b; animation: pulse 2s infinite; }
+        .status-error { background: #ef4444; }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+
+        .log-container {
+            background: #1f2937;
+            color: #e5e7eb;
+            border-radius: 10px;
+            padding: 20px;
+            font-family: 'Courier New', monospace;
+            font-size: 0.9rem;
+            max-height: 400px;
+            overflow-y: auto;
+            border: 2px solid #374151;
+        }
+
+        .log-entry {
+            margin-bottom: 8px;
+            padding: 8px 12px;
+            border-radius: 6px;
+            border-left: 4px solid transparent;
+        }
+
+        .log-info { border-left-color: #3b82f6; background: rgba(59, 130, 246, 0.1); }
+        .log-success { border-left-color: #10b981; background: rgba(16, 185, 129, 0.1); }
+        .log-warning { border-left-color: #f59e0b; background: rgba(245, 158, 11, 0.1); }
+        .log-error { border-left-color: #ef4444; background: rgba(239, 68, 68, 0.1); }
+
+        .progress-bar {
+            width: 100%;
+            height: 8px;
+            background: #e5e7eb;
+            border-radius: 4px;
+            overflow: hidden;
+            margin-top: 15px;
+        }
+
+        .progress-fill {
+            height: 100%;
+            background: linear-gradient(90deg, #6366f1, #8b5cf6);
+            transition: width 0.3s ease;
+            width: 0%;
+        }
+
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 20px;
+            margin-top: 20px;
+        }
+
+        .stat-card {
+            background: rgba(255, 255, 255, 0.9);
+            padding: 20px;
+            border-radius: 12px;
+            text-align: center;
+            border: 2px solid rgba(99, 102, 241, 0.1);
+        }
+
+        .stat-number {
+            font-size: 2rem;
+            font-weight: 700;
+            color: #6366f1;
+            display: block;
+        }
+
+        .stat-label {
+            color: #6b7280;
+            margin-top: 5px;
+            font-size: 0.9rem;
+        }
+
+        @media (max-width: 768px) {
+            .header h1 { font-size: 2rem; }
+            .main-content { padding: 20px; }
+            .section { padding: 20px; }
+            .form-grid { grid-template-columns: 1fr; }
+        }
+
+        .icon {
+            width: 24px;
+            height: 24px;
+            fill: currentColor;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🤖 智能笔记整理工具</h1>
+            <p>基于AI的GitHub笔记语义索引与自动整理系统</p>
+        </div>
+
+        <div class="main-content">
+            <!-- 配置区域 -->
+            <div class="section">
+                <h2>
+                    <svg class="icon" viewBox="0 0 24 24">
+                        <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z"/>
+                    </svg>
+                    API配置
+                </h2>
+                <div class="form-grid">
+                    <div class="form-group">
+                        <label for="githubToken">GitHub API Token</label>
+                        <div class="password-input">
+                            <input type="password" id="githubToken" placeholder="ghp_xxxxxxxxxxxxxxxx">
+                            <button type="button" class="password-toggle" onclick="togglePassword('githubToken')">👁️</button>
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label for="openaiKey">OpenAI API Key</label>
+                        <div class="password-input">
+                            <input type="password" id="openaiKey" placeholder="sk-xxxxxxxxxxxxxxxx">
+                            <button type="button" class="password-toggle" onclick="togglePassword('openaiKey')">👁️</button>
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label for="githubUser">GitHub用户名</label>
+                        <input type="text" id="githubUser" placeholder="your-username">
+                    </div>
+                    <div class="form-group">
+                        <label for="sourceRepo">源仓库名</label>
+                        <input type="text" id="sourceRepo" placeholder="notes-repo">
+                    </div>
+                    <div class="form-group">
+                        <label for="targetRepo">目标仓库名</label>
+                        <input type="text" id="targetRepo" placeholder="organized-notes-repo">
+                    </div>
+                    <div class="form-group">
+                        <label for="gptModel">GPT模型</label>
+                        <select id="gptModel">
+                            <option value="gpt-4o-mini">GPT-4o Mini (推荐)</option>
+                            <option value="gpt-4o">GPT-4o</option>
+                            <option value="gpt-4-turbo">GPT-4 Turbo</option>
+                            <option value="gpt-3.5-turbo">GPT-3.5 Turbo</option>
+                        </select>
+                    </div>
+                </div>
+                <button class="btn" onclick="saveConfig()" style="margin-top: 20px;">
+                    💾 保存配置
+                </button>
+            </div>
+
+            <!-- 操作区域 -->
+            <div class="section">
+                <h2>
+                    <svg class="icon" viewBox="0 0 24 24">
+                        <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/>
+                    </svg>
+                    智能整理控制
+                </h2>
+                <div style="display: flex; gap: 15px; flex-wrap: wrap; align-items: center;">
+                    <button class="btn btn-secondary" onclick="startProcessing()" id="processBtn">
+                        🚀 开始智能整理
+                    </button>
+                    <div style="display: flex; align-items: center; gap: 10px;">
+                        <span class="status-indicator status-ready" id="statusIndicator"></span>
+                        <span id="statusText">就绪</span>
+                    </div>
+                </div>
+                <div class="progress-bar">
+                    <div class="progress-fill" id="progressBar"></div>
+                </div>
+            </div>
+
+            <!-- 统计区域 -->
+            <div class="section">
+                <h2>
+                    <svg class="icon" viewBox="0 0 24 24">
+                        <path d="M3 13h8V3H3v10zm0 8h8v-6H3v6zm10 0h8V11h-8v10zm0-18v6h8V3h-8z"/>
+                    </svg>
+                    处理统计
+                </h2>
+                <div class="stats-grid">
+                    <div class="stat-card">
+                        <span class="stat-number" id="totalFiles">0</span>
+                        <div class="stat-label">总文件数</div>
+                    </div>
+                    <div class="stat-card">
+                        <span class="stat-number" id="processedFiles">0</span>
+                        <div class="stat-label">已处理</div>
+                    </div>
+                    <div class="stat-card">
+                        <span class="stat-number" id="skippedFiles">0</span>
+                        <div class="stat-label">已跳过</div>
+                    </div>
+                    <div class="stat-card">
+                        <span class="stat-number" id="errorFiles">0</span>
+                        <div class="stat-label">处理失败</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 日志管理区域 -->
+            <div class="section">
+                <h2>
+                    <svg class="icon" viewBox="0 0 24 24">
+                        <path d="M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm-5 14H7v-2h7v2zm3-4H7v-2h10v2zm0-4H7V7h10v2z"/>
+                    </svg>
+                    日志管理
+                </h2>
+                <div style="display: flex; gap: 15px; flex-wrap: wrap; margin-bottom: 20px;">
+                    <button class="btn" onclick="viewHistoryLogs()" style="background: linear-gradient(135deg, #f59e0b, #d97706);">
+                        📚 查看历史日志
+                    </button>
+                    <button class="btn" onclick="saveCurrentSession()" style="background: linear-gradient(135deg, #10b981, #059669);">
+                        💾 保存当前会话
+                    </button>
+                    <button class="btn" onclick="clearCurrentLogs()" style="background: linear-gradient(135deg, #6b7280, #4b5563);">
+                        🗑️清空当前日志
+                    </button>
+                </div>
+                <div class="log-container" id="logContainer">
+                    <div class="log-entry log-info">系统已就绪，等待开始处理...</div>
+                </div>
+            </div>
+
+            <!-- 处理日志 -->
+            <div class="section">
+                <h2>
+                    <svg class="icon" viewBox="0 0 24 24">
+                        <path d="M14 2H6c-1.1 0-1.99.9-1.99 2L4 20c0 1.1.89 2 2 2h12c1.1 0 2-.9 2-2V8l-6-6zm2 16H8v-2h8v2zm0-4H8v-2h8v2zm-3-5V3.5L18.5 9H13z"/>
+                    </svg>
+                    GitHub日志状态
+                </h2>
+                <div class="stats-grid">
+                    <div class="stat-card">
+                        <span class="stat-number" id="logStatus">📝</span>
+                        <div class="stat-label">日志状态</div>
+                    </div>
+                    <div class="stat-card">
+                        <span class="stat-number" id="sessionCount">0</span>
+                        <div class="stat-label">历史会话</div>
+                    </div>
+                    <div class="stat-card">
+                        <span class="stat-number" id="errorCount">0</span>
+                        <div class="stat-label">错误记录</div>
+                    </div>
+                    <div class="stat-card" style="cursor: pointer;" onclick="exportReport()">
+                        <span class="stat-number">📊</span>
+                        <div class="stat-label">导出报告</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // 全局变量
+        let config = {};
+        let isProcessing = false;
+        let processedLog = new Set();
+        let stats = {
+            total: 0,
+            processed: 0,
+            skipped: 0,
+            error: 0
+        };
+
+        // 初始化
+        document.addEventListener('DOMContentLoaded', function() {
+            loadConfig();
+        });
+
+        // 配置管理
+        function saveConfig() {
+            config = {
+                githubToken: document.getElementById('githubToken').value,
+                openaiKey: document.getElementById('openaiKey').value,
+                githubUser: document.getElementById('githubUser').value,
+                sourceRepo: document.getElementById('sourceRepo').value,
+                targetRepo: document.getElementById('targetRepo').value,
+                gptModel: document.getElementById('gptModel').value
+            };
+
+            // 保存到内存（不使用localStorage）
+            addLog('配置已保存', 'success');
+        }
+
+        function loadConfig() {
+            // 从内存加载配置（如果有的话）
+            if (Object.keys(config).length > 0) {
+                document.getElementById('githubToken').value = config.githubToken || '';
+                document.getElementById('openaiKey').value = config.openaiKey || '';
+                document.getElementById('githubUser').value = config.githubUser || '';
+                document.getElementById('sourceRepo').value = config.sourceRepo || '';
+                document.getElementById('targetRepo').value = config.targetRepo || '';
+                document.getElementById('gptModel').value = config.gptModel || 'gpt-4o-mini';
+            }
+        }
+
+        function togglePassword(fieldId) {
+            const field = document.getElementById(fieldId);
+            const button = field.nextElementSibling;
+            
+            if (field.type === 'password') {
+                field.type = 'text';
+                button.textContent = '🙈';
+            } else {
+                field.type = 'password';
+                button.textContent = '👁️';
+            }
+        }
+
+        // 日志管理
+        function addLog(message, type = 'info') {
+            const logContainer = document.getElementById('logContainer');
+            const timestamp = new Date().toLocaleString();
+            const logEntry = document.createElement('div');
+            logEntry.className = `log-entry log-${type}`;
+            logEntry.textContent = `[${timestamp}] ${message}`;
+            
+            logContainer.appendChild(logEntry);
+            logContainer.scrollTop = logContainer.scrollHeight;
+        }
+
+        // 状态管理
+        function updateStatus(text, status = 'ready') {
+            document.getElementById('statusText').textContent = text;
+            const indicator = document.getElementById('statusIndicator');
+            indicator.className = `status-indicator status-${status}`;
+        }
+
+        function updateProgress(percent) {
+            document.getElementById('progressBar').style.width = `${percent}%`;
+        }
+
+        function updateStats() {
+            document.getElementById('totalFiles').textContent = stats.total;
+            document.getElementById('processedFiles').textContent = stats.processed;
+            document.getElementById('skippedFiles').textContent = stats.skipped;
+            document.getElementById('errorFiles').textContent = stats.error;
+        }
+
+        // GitHub API调用
+        async function githubRequest(endpoint, method = 'GET', body = null) {
+            const url = `https://api.github.com${endpoint}`;
+            const headers = {
+                'Authorization': `token ${config.githubToken}`,
+                'Accept': 'application/vnd.github.v3+json',
+                'Content-Type': 'application/json'
+            };
+
+            const response = await fetch(url, {
+                method,
+                headers,
+                body: body ? JSON.stringify(body) : null
+            });
+
+            if (!response.ok) {
+                throw new Error(`GitHub API Error: ${response.status} ${response.statusText}`);
+            }
+
+            return await response.json();
+        }
+
+        // OpenAI API调用
+        async function openaiRequest(messages, model = 'gpt-4o-mini') {
+            const response = await fetch('https://api.openai.com/v1/chat/completions', {
+                method: 'POST',
+                headers: {
+                    'Authorization': `Bearer ${config.openaiKey}`,
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    model: model,
+                    messages: messages,
+                    temperature: 0.7,
+                    max_tokens: 4000
+                })
+            });
+
+            if (!response.ok) {
+                throw new Error(`OpenAI API Error: ${response.status} ${response.statusText}`);
+            }
+
+            return await response.json();
+        }
+
+        // 获取处理日志
+        async function getProcessingLog() {
+            try {
+                const logFile = await githubRequest(`/repos/${config.githubUser}/${config.targetRepo}/contents/logs/processing_log.md`);
+                const content = atob(logFile.content);
+                return content.split('\n').filter(line => line.trim());
+            } catch (error) {
+                if (error.message.includes('404')) {
+                    return []; // 日志文件不存在
+                }
+                throw error;
+            }
+        }
+
+        // 更新处理日志
+        async function updateProcessingLog(filename, status = 'success', details = '') {
+            const timestamp = new Date().toISOString();
+            const logEntry = `${filename} | ${status} | ${timestamp} | ${details}`;
+            
+            try {
+                const logFile = await githubRequest(`/repos/${config.githubUser}/${config.targetRepo}/contents/logs/processing_log.md`);
+                const existingContent = atob(logFile.content);
+                const newContent = existingContent + '\n' + logEntry;
+                
+                await githubRequest(`/repos/${config.githubUser}/${config.targetRepo}/contents/logs/processing_log.md`, 'PUT', {
+                    message: `Update processing log for ${filename}`,
+                    content: btoa(newContent),
+                    sha: logFile.sha
+                });
+            } catch (error) {
+                if (error.message.includes('404')) {
+                    // 创建新的日志文件和目录
+                    const logHeader = `# AI笔记整理处理日志\n\n记录格式：文件名 | 状态 | 时间戳 | 详细信息\n\n---\n\n`;
+                    await githubRequest(`/repos/${config.githubUser}/${config.targetRepo}/contents/logs/processing_log.md`, 'PUT', {
+                        message: `Create processing log directory and file`,
+                        content: btoa(logHeader + logEntry)
+                    });
+                } else {
+                    throw error;
+                }
+            }
+        }
+
+        // 写入会话日志到GitHub
+        async function writeSessionLogToGithub() {
+            const sessionId = Date.now();
+            const sessionLog = Array.from(document.querySelectorAll('.log-entry')).map(el => el.textContent).join('\n');
+            
+            const sessionLogContent = `# AI笔记整理会话日志 - ${new Date().toLocaleString()}\n\n## 会话ID: ${sessionId}\n\n## 配置信息\n- 模型: ${config.gptModel}\n- 源仓库: ${config.sourceRepo}\n- 目标仓库: ${config.targetRepo}\n\n## 处理统计\n- 总文件数: ${stats.total}\n- 已处理: ${stats.processed}\n- 已跳过: ${stats.skipped}\n- 处理失败: ${stats.error}\n\n## 详细日志\n\n\`\`\`\n${sessionLog}\n\`\`\`\n\n---\n\n生成时间: ${new Date().toISOString()}`;
+            
+            try {
+                await githubRequest(`/repos/${config.githubUser}/${config.targetRepo}/contents/logs/session_${sessionId}.md`, 'PUT', {
+                    message: `Add session log ${sessionId}`,
+                    content: btoa(sessionLogContent)
+                });
+                
+                addLog(`📝 会话日志已保存到GitHub: logs/session_${sessionId}.md`, 'success');
+                return true;
+            } catch (error) {
+                addLog(`❌ 保存会话日志失败: ${error.message}`, 'error');
+                return false;
+            }
+        }
+
+        // 获取历史会话日志列表
+        async function getSessionLogs() {
+            try {
+                const logsDir = await githubRequest(`/repos/${config.githubUser}/${config.targetRepo}/contents/logs`);
+                const sessionLogs = logsDir.filter(file => file.name.startsWith('session_') && file.name.endsWith('.md'));
+                return sessionLogs.sort((a, b) => b.name.localeCompare(a.name)); // 按时间倒序
+            } catch (error) {
+                if (error.message.includes('404')) {
+                    return []; // logs目录不存在
+                }
+                throw error;
+            }
+        }
+
+        // 创建详细的错误日志
+        async function logErrorToGithub(filename, error, context = '') {
+            const errorLogContent = `# 错误日志 - ${filename}\n\n## 错误信息\n${error.message}\n\n## 错误堆栈\n\`\`\`\n${error.stack || 'No stack trace available'}\n\`\`\`\n\n## 上下文信息\n${context}\n\n## 时间\n${new Date().toISOString()}\n\n## 配置\n- 模型: ${config.gptModel}\n- 源仓库: ${config.sourceRepo}\n- 目标仓库: ${config.targetRepo}`;
+            
+            try {
+                const errorFileName = `error_${filename.replace(/[^a-zA-Z0-9]/g, '_')}_${Date.now()}.md`;
+                await githubRequest(`/repos/${config.githubUser}/${config.targetRepo}/contents/logs/errors/${errorFileName}`, 'PUT', {
+                    message: `Add error log for ${filename}`,
+                    content: btoa(errorLogContent)
+                });
+                
+                addLog(`📝 错误详情已记录到GitHub: logs/errors/${errorFileName}`, 'info');
+            } catch (logError) {
+                addLog(`⚠️ 无法记录错误日志: ${logError.message}`, 'warning');
+            }
+        }
+
+        // 处理单个笔记文件
+        async function processNoteFile(file) {
+            addLog(`开始处理文件: ${file.name}`, 'info');
+            
+            try {
+                // 获取文件内容
+                const fileData = await githubRequest(`/repos/${config.githubUser}/${config.sourceRepo}/contents/${file.path}`);
+                const content = atob(fileData.content);
+                
+                // 解析笔记内容
+                const lines = content.split('\n');
+                const numberedLines = lines.map((text, index) => ({
+                    num: index + 1,
+                    text: text
+                }));
+
+                // 构建GPT请求
+                const protocol = `你是增量编辑 Patch 应用器助手，专门用于整理和优化笔记内容。接收用户需求和带行号的笔记内容，返回纯 JSON 数组操作指令。
+
+你需要分析笔记内容并进行以下优化：
+1. 为重要概念添加解释性注释
+2. 整理格式，确保Markdown语法正确
+3. 为时间戳标题添加更清晰的描述
+4. 补充相关的标签和分类
+5. 修正语法错误和改善表达
+
+操作指令格式：
+{"op":"delete_line", "line":L} 删除第 L 行
+{"op":"delete_block", "start":S, "end":E} 删除第 S 行至第 E 行
+{"op":"replace_line","line":L, "content":"文本"} 替换第 L 行
+{"op":"insert_line","line":L, "content":"文本"} 在第 L 行之前插入一行
+{"op":"insert_block","line":L, "content":["行1","行2"]} 在第 L 行之前插入多行
+{"op":"edit_block","start":S, "end":E, "content":["行1","行2"]} 用多行替换第 S 到 E 行
+
+请直接返回JSON格式的操作数组，不要包含任何其他文字。`;
+
+                const codeLines = numberedLines.map(item => `${item.num}: ${item.text}`);
+                const prompt = `${protocol}\n\n用户需求：优化和整理这个笔记文件，添加必要的注释和格式改进\n\n目标代码：\n${codeLines.join('\n')}\n\n请严格按照格式返回JSON操作数组：`;
+
+                // 调用OpenAI API
+                const response = await openaiRequest([
+                    { role: 'user', content: prompt }
+                ], config.gptModel);
+
+                const aiResponse = response.choices[0].message.content;
+                let operations;
+                
+                try {
+                    // 尝试解析JSON
+                    const parsed = JSON.parse(aiResponse);
+                    operations = parsed.ops || parsed;
+                } catch (parseError) {
+                    // 如果直接解析失败，尝试提取JSON部分
+                    const jsonMatch = aiResponse.match(/\{[\s\S]*\}/);
+                    if (jsonMatch) {
+                        const parsed = JSON.parse(jsonMatch[0]);
+                        operations = parsed.ops || parsed;
+                    } else {
+                        throw new Error('AI返回的格式无法解析');
+                    }
+                }
+
+                // 应用操作
+                let modifiedLines = [...lines];
+                
+                // 按行号倒序排序操作，避免行号偏移问题
+                operations.sort((a, b) => {
+                    const lineA = a.line || a.start || 0;
+                    const lineB = b.line || b.start || 0;
+                    return lineB - lineA;
+                });
+
+                for (const op of operations) {
+                    switch (op.op) {
+                        case 'delete_line':
+                            if (op.line > 0 && op.line <= modifiedLines.length) {
+                                modifiedLines.splice(op.line - 1, 1);
+                            }
+                            break;
+                        case 'delete_block':
+                            if (op.start > 0 && op.end <= modifiedLines.length) {
+                                modifiedLines.splice(op.start - 1, op.end - op.start + 1);
+                            }
+                            break;
+                        case 'replace_line':
+                            if (op.line > 0 && op.line <= modifiedLines.length) {
+                                modifiedLines[op.line - 1] = op.content;
+                            }
+                            break;
+                        case 'insert_line':
+                            if (op.line > 0 && op.line <= modifiedLines.length + 1) {
+                                modifiedLines.splice(op.line - 1, 0, op.content);
+                            }
+                            break;
+                        case 'insert_block':
+                            if (op.line > 0 && op.line <= modifiedLines.length + 1) {
+                                modifiedLines.splice(op.line - 1, 0, ...op.content);
+                            }
+                            break;
+                        case 'edit_block':
+                            if (op.start > 0 && op.end <= modifiedLines.length) {
+                                modifiedLines.splice(op.start - 1, op.end - op.start + 1, ...op.content);
+                            }
+                            break;
+                    }
+                }
+
+                const modifiedContent = modifiedLines.join('\n');
+
+                // 保存到目标仓库
+                try {
+                    // 检查目标文件是否存在
+                    let targetSha = null;
+                    try {
+                        const existingFile = await githubRequest(`/repos/${config.githubUser}/${config.targetRepo}/contents/${file.path}`);
+                        targetSha = existingFile.sha;
+                    } catch (e) {
+                        // 文件不存在，这是正常的
+                    }
+
+                    await githubRequest(`/repos/${config.githubUser}/${config.targetRepo}/contents/${file.path}`, 'PUT', {
+                        message: `AI整理笔记: ${file.name}`,
+                        content: btoa(modifiedContent),
+                        sha: targetSha
+                    });
+
+                    // 更新处理日志
+                    await updateProcessingLog(file.name, 'success', `应用了${operations.length}个编辑操作`);
+                    
+                    addLog(`✅ 成功处理: ${file.name}`, 'success');
+                    stats.processed++;
+                    
+                } catch (saveError) {
+                    await updateProcessingLog(file.name, 'failed', `保存失败: ${saveError.message}`);
+                    await logErrorToGithub(file.name, saveError, '文件保存阶段');
+                    addLog(`❌ 保存失败: ${file.name} - ${saveError.message}`, 'error');
+                    stats.error++;
+                }
+
+            } catch (error) {
+                await updateProcessingLog(file.name, 'error', `处理失败: ${error.message}`);
+                await logErrorToGithub(file.name, error, '文件处理阶段');
+                addLog(`❌ 处理失败: ${file.name} - ${error.message}`, 'error');
+                stats.error++;
+            }
+        }
+
+        // 主处理函数
+        async function startProcessing() {
+            if (isProcessing) return;
+
+            // 验证配置
+            saveConfig();
+            if (!config.githubToken || !config.openaiKey || !config.githubUser || !config.sourceRepo || !config.targetRepo) {
+                addLog('❌ 请填写完整的配置信息', 'error');
+                return;
+            }
+
+            isProcessing = true;
+            document.getElementById('processBtn').disabled = true;
+            updateStatus('正在处理...', 'processing');
+            
+            // 重置统计
+            stats = { total: 0, processed: 0, skipped: 0, error: 0 };
+            updateStats();
+
+            try {
+                addLog('🚀 开始智能笔记整理流程', 'info');
+                
+                // 获取处理日志
+                const processingLog = await getProcessingLog();
+                processedLog = new Set(processingLog.map(line => {
+                    const parts = line.split(' | ');
+                    return parts[0]; // 提取文件名部分
+                }).filter(filename => filename && filename.trim()));
+                
+                addLog(`📋 已找到 ${processedLog.size} 个已处理文件记录`, 'info');
+
+                // 获取源仓库的所有文件
+                const repoContents = await githubRequest(`/repos/${config.githubUser}/${config.sourceRepo}/contents`);
+                const mdFiles = [];
+
+                // 递归获取所有.md文件
+                async function collectMdFiles(contents, path = '') {
+                    for (const item of contents) {
+                        if (item.type === 'file' && item.name.endsWith('.md')) {
+                            mdFiles.push({
+                                name: item.name,
+                                path: item.path,
+                                url: item.url
+                            });
+                        } else if (item.type === 'dir') {
+                            const subContents = await githubRequest(`/repos/${config.githubUser}/${config.sourceRepo}/contents/${item.path}`);
+                            await collectMdFiles(subContents, item.path);
+                        }
+                    }
+                }
+
+                await collectMdFiles(repoContents);
+                
+                // 过滤未处理的文件
+                const unprocessedFiles = mdFiles.filter(file => !processedLog.has(file.name));
+                
+                stats.total = mdFiles.length;
+                stats.skipped = processedLog.size;
+                updateStats();
+
+                addLog(`📁 找到 ${stats.total} 个Markdown文件，其中 ${unprocessedFiles.length} 个待处理`, 'info');
+
+                if (unprocessedFiles.length === 0) {
+                    addLog('✅ 所有文件都已处理完成', 'success');
+                    updateStatus('所有文件已处理', 'ready');
+                    return;
+                }
+
+                // 处理每个文件
+                for (let i = 0; i < unprocessedFiles.length; i++) {
+                    const file = unprocessedFiles[i];
+                    const progress = ((i + 1) / unprocessedFiles.length) * 100;
+                    
+                    updateProgress(progress);
+                    updateStatus(`处理中... (${i + 1}/${unprocessedFiles.length})`, 'processing');
+                    
+                    await processNoteFile(file);
+                    updateStats();
+                    
+                    // 添加延迟避免API限制
+                    if (i < unprocessedFiles.length - 1) {
+                        await new Promise(resolve => setTimeout(resolve, 1000));
+                    }
+                }
+
+                addLog('🎉 智能笔记整理完成！', 'success');
+                updateStatus('处理完成', 'ready');
+                updateProgress(100);
+
+                // 保存会话日志到GitHub
+                addLog('📝 正在保存会话日志到GitHub...', 'info');
+                await writeSessionLogToGithub();
+
+            } catch (error) {
+                addLog(`❌ 处理过程中发生错误: ${error.message}`, 'error');
+                await logErrorToGithub('main_process', error, '主处理流程');
+                updateStatus('处理出错', 'error');
+            } finally {
+                isProcessing = false;
+                document.getElementById('processBtn').disabled = false;
+            }
+        }
+
+        // 工具函数
+        function validateConfig() {
+            const required = ['githubToken', 'openaiKey', 'githubUser', 'sourceRepo', 'targetRepo'];
+            for (const field of required) {
+                if (!config[field] || config[field].trim() === '') {
+                    return false;
+                }
+            }
+            return true;
+        }
+
+        // 错误处理
+        window.addEventListener('error', function(e) {
+            addLog(`💥 系统错误: ${e.message}`, 'error');
+        });
+
+        // 添加键盘快捷键
+        document.addEventListener('keydown', function(e) {
+            if (e.ctrlKey || e.metaKey) {
+                switch(e.key) {
+                    case 's':
+                        e.preventDefault();
+                        saveConfig();
+                        break;
+                    case 'Enter':
+                        if (!isProcessing) {
+                            e.preventDefault();
+                            startProcessing();
+                        }
+                        break;
+                }
+            }
+        });
+
+        // 页面离开前提醒
+        window.addEventListener('beforeunload', function(e) {
+            if (isProcessing) {
+                e.preventDefault();
+                e.returnValue = '正在处理文件，确定要离开吗？';
+                return e.returnValue;
+            }
+        });
+
+        // 自动保存配置功能
+        function setupAutoSave() {
+            const inputs = document.querySelectorAll('input, select');
+            inputs.forEach(input => {
+                input.addEventListener('blur', function() {
+                    if (this.value.trim()) {
+                        saveConfig();
+                    }
+                });
+            });
+        }
+
+        // 初始化自动保存
+        setupAutoSave();
+
+        // 添加拖拽文件支持（未来扩展）
+        document.addEventListener('dragover', function(e) {
+            e.preventDefault();
+        });
+
+        document.addEventListener('drop', function(e) {
+            e.preventDefault();
+            addLog('🚧 拖拽上传功能开发中...', 'warning');
+        });
+
+        // 主题切换功能（可选）
+        function toggleTheme() {
+            document.body.classList.toggle('dark-theme');
+            addLog('🎨 主题已切换', 'info');
+        }
+
+        // 批量操作提示
+        function showBatchTips() {
+            addLog('💡 提示：建议在网络稳定时进行批量处理', 'info');
+            addLog('💡 提示：大量文件处理时请保持页面开启', 'info');
+            addLog('💡 提示：可使用Ctrl+S快速保存配置', 'info');
+        }
+
+        // 启动时显示提示
+        setTimeout(showBatchTips, 2000);
+
+        // API配额检查（可选功能）
+        async function checkApiQuota() {
+            try {
+                // 检查GitHub API剩余配额
+                const rateLimit = await fetch('https://api.github.com/rate_limit', {
+                    headers: {
+                        'Authorization': `token ${config.githubToken}`
+                    }
+                });
+                
+                if (rateLimit.ok) {
+                    const data = await rateLimit.json();
+                    const remaining = data.rate.remaining;
+                    addLog(`GitHub API剩余配额: ${remaining}`, remaining > 100 ? 'info' : 'warning');
+                }
+            } catch (error) {
+                // 静默处理配额检查错误
+            }
+        }
+
+        // 增强的错误重试机制
+        async function retryOperation(operation, maxRetries = 3, delay = 1000) {
+            for (let i = 0; i < maxRetries; i++) {
+                try {
+                    return await operation();
+                } catch (error) {
+                    if (i === maxRetries - 1) throw error;
+                    addLog(`⚠️ 操作失败，${delay/1000}秒后重试... (${i+1}/${maxRetries})`, 'warning');
+                    await new Promise(resolve => setTimeout(resolve, delay));
+                    delay *= 2; // 指数退避
+                }
+            }
+        }
+
+        // 文件大小检查
+        function checkFileSize(content, filename, maxSize = 1024 * 1024) { // 1MB限制
+            const size = new Blob([content]).size;
+            if (size > maxSize) {
+                addLog(`⚠️ 文件 ${filename} 过大 (${(size/1024/1024).toFixed(2)}MB)，可能影响处理性能`, 'warning');
+                return false;
+            }
+            return true;
+        }
+
+        // 内容质量检查
+        function validateNoteContent(content, filename) {
+            const lines = content.split('\n');
+            const hasTimeHeader = lines.some(line => /^##\s+\d{4}\/\d{2}\/\d{2}/.test(line));
+            
+            if (!hasTimeHeader) {
+                addLog(`⚠️ 文件 ${filename} 可能不是标准的日记格式`, 'warning');
+            }
+            
+            if (lines.length < 3) {
+                addLog(`⚠️ 文件 ${filename} 内容过少，可能不需要AI处理`, 'warning');
+                return false;
+            }
+            
+            return true;
+        }
+
+        // 导出处理报告
+        function exportReport() {
+            const report = {
+                timestamp: new Date().toISOString(),
+                config: {
+                    model: config.gptModel,
+                    sourceRepo: config.sourceRepo,
+                    targetRepo: config.targetRepo
+                },
+                stats: stats,
+                logs: Array.from(document.querySelectorAll('.log-entry')).map(el => el.textContent)
+            };
+            
+            const blob = new Blob([JSON.stringify(report, null, 2)], { type: 'application/json' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `note-processing-report-${Date.now()}.json`;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+            
+            addLog('📊 处理报告已导出', 'success');
+        }
+
+        // 查看历史会话日志
+        async function viewHistoryLogs() {
+            try {
+                addLog('🔍 正在获取历史会话日志...', 'info');
+                const sessionLogs = await getSessionLogs();
+                
+                if (sessionLogs.length === 0) {
+                    addLog('📭 暂无历史会话日志', 'info');
+                    return;
+                }
+
+                addLog(`📚 找到 ${sessionLogs.length} 个历史会话日志:`, 'info');
+                sessionLogs.slice(0, 10).forEach((log, index) => {
+                    const sessionId = log.name.replace('session_', '').replace('.md', '');
+                    const date = new Date(parseInt(sessionId)).toLocaleString();
+                    addLog(`  ${index + 1}. 会话 ${sessionId} - ${date}`, 'info');
+                });
+
+                if (sessionLogs.length > 10) {
+                    addLog(`  ... 还有 ${sessionLogs.length - 10} 个历史会话`, 'info');
+                }
+
+                document.getElementById('sessionCount').textContent = sessionLogs.length;
+            } catch (error) {
+                addLog(`❌ 获取历史日志失败: ${error.message}`, 'error');
+            }
+        }
+
+        // 保存当前会话
+        async function saveCurrentSession() {
+            if (Array.from(document.querySelectorAll('.log-entry')).length <= 1) {
+                addLog('⚠️ 当前会话无内容可保存', 'warning');
+                return;
+            }
+
+            addLog('💾 正在保存当前会话到GitHub...', 'info');
+            const success = await writeSessionLogToGithub();
+            
+            if (success) {
+                document.getElementById('logStatus').textContent = '✅';
+                // 更新会话计数
+                viewHistoryLogs();
+            } else {
+                document.getElementById('logStatus').textContent = '❌';
+            }
+        }
+
+        // 清空当前日志
+        function clearCurrentLogs() {
+            const logContainer = document.getElementById('logContainer');
+            logContainer.innerHTML = '<div class="log-entry log-info">日志已清空，等待新的操作...</div>';
+            addLog('🗑️ 当前日志已清空', 'info');
+        }
+
+        // 检查GitHub日志目录状态
+        async function checkLogStatus() {
+            try {
+                const sessionLogs = await getSessionLogs();
+                document.getElementById('sessionCount').textContent = sessionLogs.length;
+                
+                // 检查错误日志
+                try {
+                    const errorLogs = await githubRequest(`/repos/${config.githubUser}/${config.targetRepo}/contents/logs/errors`);
+                    document.getElementById('errorCount').textContent = errorLogs.length;
+                } catch (e) {
+                    document.getElementById('errorCount').textContent = '0';
+                }
+                
+                document.getElementById('logStatus').textContent = '✅';
+            } catch (error) {
+                document.getElementById('logStatus').textContent = '❌';
+            }
+        }
+
+        // 定期检查日志状态
+        setInterval(() => {
+            if (config.githubToken && config.githubUser && config.targetRepo) {
+                checkLogStatus();
+            }
+        }, 30000); // 每30秒检查一次
+
+        // 添加导出按钮到统计区域
+        // document.querySelector('.stats-grid').insertAdjacentHTML('beforeend', `
+        //     <div class="stat-card" style="cursor: pointer;" onclick="exportReport()">
+        //         <span class="stat-number">📊</span>
+        //         <div class="stat-label">导出报告</div>
+        //     </div>
+        // `);
+    </script>
+</body>
+</html>

@@ -1,0 +1,128 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <title>函数提取（单文件版）</title>
+  <style>
+    body { font-family: sans-serif; padding: 1rem; }
+    h1 { margin-bottom: .5rem; }
+    #output { white-space: pre-wrap; background: #f7f7f7; padding: .5rem; border-radius: 4px; }
+  </style>
+</head>
+<body>
+  <h1>多语言函数提取（单文件）</h1>
+  <p>选择一个 <code>.py</code>、<code>.js</code>、<code>.jsx</code>、<code>.go</code>、<code>.rs</code> 或者 <code>.html</code> 文件：</p>
+  <input type="file" id="file-input" />
+  <pre id="output">等待文件……</pre>
+
+  <!-- 引入 web-tree-sitter -->
+  <script src="https://unpkg.com/web-tree-sitter@0.20.3/dist/tree-sitter.js"></script>
+  <script type="module">
+    import Parser from 'https://unpkg.com/web-tree-sitter@0.20.3/dist/tree-sitter.mjs';
+
+    (async () => {
+      await Parser.init();
+
+      // 各扩展对应的 .wasm URL
+      const EXT_WASM = {
+        py:  'https://unpkg.com/tree-sitter-python/tree-sitter-python.wasm',
+        js:  'https://unpkg.com/tree-sitter-javascript/tree-sitter-javascript.wasm',
+        jsx: 'https://unpkg.com/tree-sitter-javascript/tree-sitter-javascript.wasm',
+        go:  'https://unpkg.com/tree-sitter-go/tree-sitter-go.wasm',
+        rs:  'https://unpkg.com/tree-sitter-rust/tree-sitter-rust.wasm'
+      };
+
+      // 不同语言的函数节点类型
+      const NODE_TYPES = {
+        python:     ['function_definition'],
+        javascript: ['function_declaration','method_definition'],
+        go:         ['function_declaration','method_declaration'],
+        rust:       ['function_item','impl_item']
+      };
+
+      // 根据扩展名初始化 Parser
+      async function initParser(ext) {
+        if (ext === 'html') return null;  // HTML 本身不直接解析
+        const url = EXT_WASM[ext];
+        if (!url) throw new Error(`不支持的扩展 .${ext}`);
+        const Lang = await Parser.Language.load(url);
+        const parser = new Parser();
+        parser.setLanguage(Lang);
+        return parser;
+      }
+
+      // 递归遍历 AST，提取函数定义
+      function extractFunctions(node, lines, types, baseLine = 1, result = []) {
+        if (types.includes(node.type)) {
+          // 读取 name 字段
+          let name = '<anon>';
+          const nameNode = node.childForFieldName('name');
+          if (nameNode) {
+            const s = nameNode.startPosition, e = nameNode.endPosition;
+            if (s.row === e.row) {
+              name = lines[s.row].slice(s.column, e.column);
+            } else {
+              name = lines.slice(s.row, e.row + 1).join('\n').slice(s.column);
+            }
+          }
+          const st = node.startPosition, en = node.endPosition;
+          result.push({
+            name,
+            start: [st.row + baseLine, st.column + 1],
+            end:   [en.row + baseLine, en.column + 1]
+          });
+        }
+        for (let i = 0; i < node.childCount; i++) {
+          extractFunctions(node.child(i), lines, types, baseLine, result);
+        }
+        return result;
+      }
+
+      // 解析文本，返回所有函数
+      async function parseText(ext, text) {
+        if (ext === 'html') {
+          // 提取所有 <script> 块
+          const all = [];
+          const re = /<script(?:\s+[^>]*type=["']text\/javascript["'])?>([\s\S]*?)<\/script>/gi;
+          let m;
+          while ((m = re.exec(text)) !== null) {
+            const baseLine = text.slice(0, m.index).split('\n').length;
+            const parser = await initParser('js');
+            const tree   = parser.parse(m[1]);
+            all.push(...extractFunctions(tree.rootNode, m[1].split('\n'), NODE_TYPES.javascript, baseLine));
+          }
+          return all;
+        }
+        // 普通语言
+        const parser = await initParser(ext);
+        const tree   = parser.parse(text);
+        const types  = NODE_TYPES[parser.getLanguage().name] || [];
+        return extractFunctions(tree.rootNode, text.split('\n'), types);
+      }
+
+      // 绑定文件输入事件
+      document.getElementById('file-input')
+        .addEventListener('change', async e => {
+          const file = e.target.files[0];
+          if (!file) return;
+          const ext = file.name.split('.').pop().toLowerCase();
+          const txt = await file.text();
+          const out = document.getElementById('output');
+          try {
+            const funcs = await parseText(ext, txt);
+            if (funcs.length === 0) {
+              out.textContent = '未发现任何函数定义。';
+            } else {
+              out.textContent = funcs
+                .map((fn,i) =>
+                  `${i+1}. ${fn.name} 行 ${fn.start[0]}:${fn.start[1]} - ${fn.end[0]}:${fn.end[1]}`
+                ).join('\n');
+            }
+          } catch (err) {
+            out.textContent = `❌ ${err.message}`;
+          }
+        });
+    })();
+  </script>
+</body>
+</html>

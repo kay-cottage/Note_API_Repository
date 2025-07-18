@@ -1,0 +1,501 @@
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <title>AI 笔记批量整理工具</title>
+    <style>
+      :root {
+        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, "Noto Sans", sans-serif, "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol", "Noto Color Emoji";
+        --bg: #f4f6f9;
+        --card: #fff;
+        --primary: #0969da;
+      }
+      body { margin: 0; background: var(--bg); }
+      .container { max-width: 960px; margin: auto; padding: 1rem; }
+      h1 { font-size: 1.5rem; text-align: center; margin-bottom: 1.2rem; }
+      form { display: grid; gap: .8rem; }
+      label { display: flex; flex-direction: column; font-size: .9rem; }
+      input, select, textarea, button {
+        padding: .55rem .75rem; border: 1px solid #d0d7de; border-radius: .5rem;
+        font-size: .9rem; line-height: 1.4;
+      }
+      input[type="checkbox"] { width: auto; margin-right: .5rem; }
+      button {
+        background: var(--primary); color: #fff; border: none; cursor: pointer;
+        transition: background .15s ease-in-out;
+      }
+      button:hover { background: #0353c3; }
+      .status { margin-top: 1rem; background: var(--card); border-radius: .75rem; padding: 1rem; max-height: 320px; overflow: auto; font-size: .8rem; }
+      @media (prefers-color-scheme: dark) {
+        :root { --bg: #0d1117; --card: #161b22; --primary: #2f81f7; }
+        body { color: #c9d1d9; }
+        input, select, textarea { background: #0d1117; color: #c9d1d9; border-color: #30363d; }
+        button { background: var(--primary); }
+        button:hover { background: #1d6cf2; }
+        .status { background: #161b22; }
+      }
+    </style>
+  </head>
+  <body>
+    <div class="container">
+      <h1>AI 笔记批量整理工具</h1>
+      <form id="config-form">
+        <label>GitHub Token（需要 repo 权限）
+          <input type="password" id="gh-token" required />
+        </label>
+        <label>GitHub 用户名
+          <input type="text" id="gh-user" required />
+        </label>
+        <label>仓库名
+          <input type="text" id="gh-repo" required />
+        </label>
+        <label>源目录（笔记原始 md 文件所在目录，如 notes/2025）
+          <input type="text" id="source-dir" value="notes" required />
+        </label>
+        <label>目标目录（AI 整理结果输出目录，例如 notes_ai）
+          <input type="text" id="target-dir" value="notes_ai" required />
+        </label>
+        <label>日志文件路径（存储已处理文件的列表）
+          <input type="text" id="log-file" value="notes_ai/ai-edit-log.json" required />
+        </label>
+        <label>OpenAI API Key
+          <input type="password" id="openai-key" required />
+        </label>
+        <label>模型
+          <select id="openai-model">
+            <option value="gpt-4o">gpt-4o</option>
+            <option value="gpt-4o-mini">gpt-4o-mini</option>
+            <option value="gpt-4-turbo">gpt-4-turbo</option>
+            <option value="gpt-3.5-turbo">gpt-3.5-turbo</option>
+          </select>
+        </label>
+        <label style="display:flex;align-items:center;">
+          <input type="checkbox" id="remember"> 记住以上设置（仅保存在浏览器本地）
+        </label>
+        <button id="run-btn" type="submit">运行 AI 整理</button>
+      </form>
+      <div class="status" id="status"></div>
+    </div>
+
+    <script>
+      /* ================================
+       * 工具：日志输出与状态追踪
+       * ============================== */
+      const statusBox = document.getElementById('status');
+      
+      /**
+       * 记录日志信息并显示在状态框中
+       * @param {string} msg - 要显示的日志消息内容
+       * @param {string} type - 日志类型，可选值：'info'（默认）、'error'（错误，显示红色）
+       */
+      function log(msg, type = 'info') {
+        const el = document.createElement('div');
+        el.textContent = `[${new Date().toLocaleString()}] ${msg}`;
+        el.style.padding = '.2rem 0';
+        if (type === 'error') el.style.color = 'crimson';
+        statusBox.prepend(el);
+      }
+
+      /* ================================
+       * 工具：localStorage 设置持久化
+       * ============================== */
+      const fields = [
+        'gh-token', 'gh-user', 'gh-repo', 'source-dir', 'target-dir', 'log-file', 'openai-key', 'openai-model'
+      ];
+      
+      /**
+       * 从localStorage加载用户之前保存的设置
+       * 无参数
+       * 功能：如果用户之前选择了"记住设置"，则从localStorage中恢复所有表单字段的值
+       */
+      (function loadSaved() {
+        if (localStorage.getItem('ai-note-remember') === 'true') {
+          fields.forEach(id => {
+            const v = localStorage.getItem('ai-note-' + id);
+            if (v !== null) document.getElementById(id).value = v;
+          });
+          document.getElementById('remember').checked = true;
+        }
+      })();
+
+      /**
+       * 保存当前表单设置到localStorage
+       * 无参数
+       * 功能：如果用户勾选了"记住设置"复选框，则将所有表单字段的值保存到localStorage；否则清除保存的设置
+       */
+      function saveSettings() {
+        if (document.getElementById('remember').checked) {
+          localStorage.setItem('ai-note-remember', 'true');
+          fields.forEach(id => {
+            localStorage.setItem('ai-note-' + id, document.getElementById(id).value);
+          });
+        } else {
+          localStorage.removeItem('ai-note-remember');
+          fields.forEach(id => localStorage.removeItem('ai-note-' + id));
+        }
+      }
+
+      /* ================================
+       * GitHub API 请求封装
+       * ============================== */
+      /**
+       * 封装GitHub API请求
+       * @param {string} method - HTTP请求方法（GET、POST、PUT、DELETE等）
+       * @param {string} path - GitHub API路径（如'/repos/user/repo/contents/file.md'）
+       * @param {string} token - GitHub个人访问令牌（Personal Access Token）
+       * @param {object} body - 请求体数据，可选参数，默认为undefined
+       * @returns {Promise} 返回Promise对象，解析为GitHub API响应的JSON数据
+       */
+      function ghRequest(method, path, token, body = undefined) {
+        return fetch(`https://api.github.com${path}`, {
+          method,
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Accept': 'application/vnd.github+json'
+          },
+          body: body ? JSON.stringify(body) : undefined
+        }).then(async res => {
+          if (!res.ok) {
+            const text = await res.text();
+            throw new Error(`GitHub API ${method} ${path} failed: ${res.status} ${text}`);
+          }
+          return res.json();
+        });
+      }
+
+      /* ================================
+       * 功能：列出目录下所有文件 (递归)
+       * ============================== */
+      /**
+       * 递归列出GitHub仓库目录下的所有文件
+       * @param {string} user - GitHub用户名
+       * @param {string} repo - GitHub仓库名
+       * @param {string} dir - 要列出的目录路径
+       * @param {string} token - GitHub个人访问令牌
+       * @param {Array} all - 用于递归收集所有文件的数组，默认为空数组
+       * @returns {Promise<Array>} 返回包含所有文件信息的数组，每个文件对象包含path（文件路径）和sha（文件哈希值）
+       */
+      async function listRepoFiles(user, repo, dir, token, all = []) {
+        const res = await ghRequest('GET', `/repos/${user}/${repo}/contents/${encodeURIComponent(dir)}`, token);
+        for (const item of res) {
+          if (item.type === 'file') {
+            all.push({ path: item.path, sha: item.sha });
+          } else if (item.type === 'dir') {
+            await listRepoFiles(user, repo, item.path, token, all);
+          }
+        }
+        return all;
+      }
+
+      /* ================================
+       * 功能：获取文件内容 (base64 -> utf8)
+       * ============================== */
+      /**
+       * 获取GitHub仓库中指定文件的内容
+       * @param {string} user - GitHub用户名
+       * @param {string} repo - GitHub仓库名
+       * @param {string} path - 文件路径
+       * @param {string} token - GitHub个人访问令牌
+       * @returns {Promise<object>} 返回对象包含content（字符串内容）和sha（文件哈希值）
+       */
+      async function getFileContent(user, repo, path, token) {
+        const res = await ghRequest('GET', `/repos/${user}/${repo}/contents/${encodeURIComponent(path)}`, token);
+        const rawContent = decodeURIComponent(escape(atob(res.content.replace(/\n/g, ''))));
+        return { content: rawContent, sha: res.sha };
+      }
+
+      /**
+       * 解析时间戳格式的笔记内容
+       * @param {string} content - 原始文件内容
+       * @returns {object} 返回结构化的内容对象
+       */
+      function parseNoteContent(content) {
+        const messages = [];
+        const lines = content.split('\n');
+        let currentMessage = null;
+        
+        for (let i = 0; i < lines.length; i++) {
+          const line = lines[i].trim();
+          
+          // 匹配时间戳格式：## YYYY/MM/DD HH:MM:SS
+          const timestampMatch = line.match(/^## (\d{4}\/\d{2}\/\d{2} \d{2}:\d{2}:\d{2})$/);
+          
+          if (timestampMatch) {
+            // 如果之前有消息，先保存
+            if (currentMessage) {
+              messages.push(currentMessage);
+            }
+            
+            // 开始新消息
+            currentMessage = {
+              timestamp: timestampMatch[1],
+              content: []
+            };
+          } else if (currentMessage && line) {
+            // 收集消息内容（非空行）
+            currentMessage.content.push(line);
+          } else if (currentMessage && !line) {
+            // 空行也加入内容（保持格式）
+            currentMessage.content.push('');
+          }
+        }
+        
+        // 保存最后一个消息
+        if (currentMessage) {
+          messages.push(currentMessage);
+        }
+        
+        // 构建结构化内容
+        return {
+          originalContent: content,
+          messages: messages,
+          totalMessages: messages.length
+        };
+      }
+
+      /* ================================
+       * 功能：提交文件（写入/覆盖）到目标目录
+       * ============================== */
+      /**
+       * 提交文件到GitHub仓库（创建新文件或覆盖现有文件）
+       * @param {string} user - GitHub用户名
+       * @param {string} repo - GitHub仓库名
+       * @param {string} path - 文件路径
+       * @param {string} token - GitHub个人访问令牌
+       * @param {string} content - 文件内容（UTF-8字符串）
+       * @param {string} message - 提交消息
+       * @param {string} sha - 文件的SHA哈希值，可选参数，用于更新现有文件时确保版本正确
+       * @returns {Promise} 返回GitHub API的响应
+       */
+      async function commitFile(user, repo, path, token, content, message, sha = undefined) {
+        const base64Content = btoa(unescape(encodeURIComponent(content)));
+        const body = {
+          message,
+          content: base64Content,
+          committer: {
+            name: 'AI Note Bot',
+            email: 'ai-note-bot@example.com'
+          }
+        };
+        if (sha) {
+          body.sha = sha;
+        }
+        return ghRequest('PUT', `/repos/${user}/${repo}/contents/${encodeURIComponent(path)}`, token, body);
+      }
+
+      /* ================================
+       * 功能：获取 AI 编辑日志文件（JSON 数组）
+       * ============================== */
+      /**
+       * 加载AI编辑日志文件
+       * @param {string} user - GitHub用户名
+       * @param {string} repo - GitHub仓库名
+       * @param {string} path - 日志文件路径
+       * @param {string} token - GitHub个人访问令牌
+       * @returns {Promise<object>} 返回对象包含list（已处理文件列表的JSON数组）和sha（日志文件的哈希值）
+       */
+      async function loadLog(user, repo, path, token) {
+        try {
+          const { content, sha } = await getFileContent(user, repo, path, token);
+          return { list: JSON.parse(content), sha };
+        } catch (err) {
+          // 如果日志不存在，返回空列表
+          if (err.message.includes('404')) return { list: [], sha: undefined };
+          throw err;
+        }
+      }
+
+      /* ================================
+       * 功能：在原始内容中插入 meta 块
+       * ============================== */
+      /**
+       * 在原始内容中插入AI生成的meta块
+       * @param {string} originalContent - 原始Markdown内容
+       * @param {string} metaBlocks - AI生成的meta块内容
+       * @returns {string} 插入meta块后的最终内容
+       */
+      function insertMetaBlocks(originalContent, metaBlocks) {
+        const lines = originalContent.split('\n');
+        const metaBlocksArray = metaBlocks.split('\n\n').filter(block => block.trim());
+        let metaIndex = 0;
+        let result = [];
+        
+        for (let i = 0; i < lines.length; i++) {
+          const line = lines[i];
+          result.push(line);
+          
+          // 检查是否是时间戳标题
+          if (line.match(/^## \d{4}\/\d{2}\/\d{2} \d{2}:\d{2}:\d{2}$/)) {
+            // 在时间戳标题后插入对应的meta块
+            if (metaIndex < metaBlocksArray.length) {
+              result.push('');
+              result.push('```yaml');
+              result.push(metaBlocksArray[metaIndex].trim());
+              result.push('```');
+              metaIndex++;
+            }
+          }
+        }
+        
+        return result.join('\n');
+      }
+
+      /**
+       * 调用OpenAI生成meta标注块
+       * @param {string} apiKey - OpenAI API密钥
+       * @param {string} model - 使用的模型名称
+       * @param {string} originalContent - 原始Markdown内容
+       * @returns {Promise<string>} 返回AI生成的meta块内容
+       */
+      async function generateMetaBlocks(apiKey, model, originalContent) {
+        const systemPrompt = `角色：你是一位 Markdown 日志索引器。
+任务：
+1. 扫描以下完整 Markdown，找出所有形如 ## YYYY/MM/DD hh:mm:ss 的标题。
+2. 只为每个标题生成一个 meta fenced block（见下方格式），不要输出正文的任何内容。
+3. 输出顺序应与原文标题顺序一致；不同记录之间用一个空行分隔。
+
+meta 格式：
+如果记录正文里不含 \`\`\` 代码块 → 生成：
+iso_datetime: <ISO 8601 带时区>
+summary: <不超过15字的中文摘要>
+
+如果记录正文里含有 \`\`\` 代码块 → 生成：
+iso_datetime: <ISO 8601 带时区>
+function_call:
+  name: <函数名>
+  description: <功能描述>
+  inputs:
+    - <参数1>: <类型>
+    - <参数2>: <类型>
+  outputs:
+    - <返回值>: <类型或说明>
+
+注意：严格按上述格式输出 meta；不要输出除 meta 之外的任何正文或解释文字。`;
+
+        const res = await fetch('https://api.openai.com/v1/chat/completions', {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${apiKey}`,
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({
+            model,
+            messages: [
+              { role: 'system', content: systemPrompt },
+              { role: 'user', content: originalContent }
+            ],
+            temperature: 0.3
+          })
+        });
+        
+        if (!res.ok) {
+          const text = await res.text();
+          throw new Error(`OpenAI API error: ${res.status} ${text}`);
+        }
+        
+        const data = await res.json();
+        return data.choices[0].message.content;
+      }
+
+      /* ================================
+       * 主入口：表单提交事件
+       * ============================== */
+      /**
+       * 表单提交事件处理函数
+       * @param {Event} e - 表单提交事件对象
+       * 功能：处理整个AI笔记整理流程，包括获取配置、列出文件、过滤未处理文件、调用AI生成meta、保存结果、更新日志
+       */
+      document.getElementById('config-form').addEventListener('submit', async e => {
+        e.preventDefault();
+        saveSettings();
+
+        const ghToken = document.getElementById('gh-token').value.trim();
+        const ghUser = document.getElementById('gh-user').value.trim();
+        const ghRepo = document.getElementById('gh-repo').value.trim();
+        const sourceDir = document.getElementById('source-dir').value.trim().replace(/^\/+|\/+$/g, '');
+        const targetDir = document.getElementById('target-dir').value.trim().replace(/^\/+|\/+$/g, '');
+        const logFile = document.getElementById('log-file').value.trim();
+        const openaiKey = document.getElementById('openai-key').value.trim();
+        const model = document.getElementById('openai-model').value;
+
+        log('开始加载文件列表…');
+        try {
+          const files = await listRepoFiles(ghUser, ghRepo, sourceDir, ghToken);
+          log(`源目录共发现 ${files.length} 个文件。`);
+
+          const { list: processed, sha: logSha } = await loadLog(ghUser, ghRepo, logFile, ghToken);
+          const processedSet = new Set(processed.map(p => p.id));
+
+          // 筛选未处理文件
+          const toProcess = files.filter(f => !processedSet.has(f.path) && f.path.endsWith('.md'));
+          log(`待处理文件：${toProcess.length} 个。`);
+
+          for (const file of toProcess) {
+            log(`处理文件：${file.path}`);
+            try {
+              const { content: rawContent } = await getFileContent(ghUser, ghRepo, file.path, ghToken);
+              
+              // 调用 OpenAI 生成meta块
+              const metaBlocks = await generateMetaBlocks(openaiKey, model, rawContent);
+              
+              // 在原始内容中插入meta块
+              const editedContent = insertMetaBlocks(rawContent, metaBlocks);
+
+              const targetPath = `${targetDir}/${file.path.substring(sourceDir.length + 1)}`;
+              
+              // 检查目标文件是否已存在，如果存在则获取其 SHA
+              let existingSha = undefined;
+              try {
+                const existingFile = await getFileContent(ghUser, ghRepo, targetPath, ghToken);
+                existingSha = existingFile.sha;
+                log(`目标文件已存在，将更新: ${targetPath}`);
+              } catch (err) {
+                if (err.message.includes('404')) {
+                  log(`目标文件不存在，将创建: ${targetPath}`);
+                } else {
+                  throw err;
+                }
+              }
+              
+              await commitFile(
+                ghUser,
+                ghRepo,
+                targetPath,
+                ghToken,
+                editedContent,
+                `AI 笔记索引: ${file.path}`,
+                existingSha
+              );
+              log(`已提交带meta标注的文件到 ${targetPath}`);
+
+              // 更新日志列表
+              const unprocessed = messages.filter(m => !processedSet.has(`${file.path}#${m.timestamp}`));
+                if (unprocessed.length === 0) return; // 跳过整个文件
+                    messages.forEach(m => processed.push({
+                    id: `${file.path}#${m.timestamp}`,
+                    editedAt: new Date().toISOString()
+                    }));
+
+            } catch (err) {
+              log(`文件处理失败: ${err.message}`, 'error');
+            }
+          }
+
+          // 保存日志文件
+          await commitFile(
+            ghUser,
+            ghRepo,
+            logFile,
+            ghToken,
+            JSON.stringify(processed, null, 2),
+            '更新 AI 笔记索引日志',
+            logSha
+          );
+          log('AI 笔记索引完成。');
+        } catch (err) {
+          log(err.message, 'error');
+        }
+      });
+    </script>
+  </body>
+</html>
